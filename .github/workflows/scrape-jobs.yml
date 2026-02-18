@@ -1,0 +1,101 @@
+name: Daily Job Scraper
+
+on:
+  schedule:
+    - cron: "0 9 * * *"   # Daily at 09:00 UTC — adjust as needed
+  workflow_dispatch:        # Allow manual trigger from the Actions tab
+
+env:
+  MONGODB_URI:      ${{ secrets.MONGODB_URI }}
+  LLM_API_KEY:      ${{ secrets.LLM_API_KEY }}
+  SENDER_EMAIL:     ${{ secrets.SENDER_EMAIL }}
+  SENDER_PASSWORD:  ${{ secrets.SENDER_PASSWORD }}
+  RECIPIENT_EMAIL:  ${{ secrets.RECIPIENT_EMAIL }}
+
+jobs:
+  scrape-and-notify:
+    name: Scrape career pages and send alerts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      # ----------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ----------------------------------------------------------------
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # ----------------------------------------------------------------
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ hashFiles('dockerfile', 'requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      # ----------------------------------------------------------------
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfile
+          push: false
+          load: true
+          tags: ats-buddy:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to:   type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      # Prevent cache growing indefinitely
+      - name: Move cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      # ----------------------------------------------------------------
+      - name: Run scraper
+        run: |
+          docker run --rm \
+            -e MONGODB_URI \
+            -e LLM_API_KEY \
+            -e SENDER_EMAIL \
+            -e SENDER_PASSWORD \
+            -e RECIPIENT_EMAIL \
+            -v "${{ github.workspace }}/data:/app/data" \
+            ats-buddy:latest \
+            --config config.yaml \
+            --urls  data/career_pages.txt \
+            --resume data/resume.tex
+
+      # ----------------------------------------------------------------
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-logs-${{ github.run_id }}
+          path: logs/
+          retention-days: 7
+
+  # ----------------------------------------------------------------
+  validate-urls:
+    name: Validate career pages list
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Check URL list
+        run: |
+          python - <<'EOF'
+          from urllib.parse import urlparse
+          with open("data/career_pages.txt") as f:
+              lines = [l.strip() for l in f if l.strip() and not l.startswith("#")]
+          bad = [l for l in lines if not urlparse(l).scheme in ("http","https")]
+          if bad:
+              print("Invalid URLs:", bad)
+              raise SystemExit(1)
+          print(f"All {len(lines)} URLs look valid.")
+          EOF

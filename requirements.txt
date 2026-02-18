@@ -1,16 +1,39 @@
-# Core LangGraph and LangChain dependencies
+# --------------------------------------------------------------------------
+# ATS-Buddy Career Scraper — Python dependencies
+# --------------------------------------------------------------------------
+
+# -- HTTP / Scraping --
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# -- Data validation --
+pydantic>=2.5.0
+python-dateutil>=2.8.2
+
+# -- Database --
+pymongo>=4.6.0
+
+# -- Resume processing --
+pylatexenc>=2.10
+
+# -- LLM providers (install the one(s) you use) --
+anthropic>=0.40.0
+# openai>=1.50.0        # uncomment if using OpenAI
+
+# -- Email templating --
+jinja2>=3.1.2
+
+# -- Configuration --
+pyyaml>=6.0
+python-dotenv>=1.0.0
+
+# -- Legacy Agent (LangGraph / Gemini — kept for backward compat) --
 langgraph>=0.2.0
 langchain>=0.2.0
 langchain-core>=0.2.0
 langchain-google-genai>=1.0.0
-
-# Google AI
 google-generativeai>=0.3.0
 
-# Environment variables
-python-dotenv>=1.0.0
-
-# Utilities
-requests>=2.31.0
-beautifulsoup4>=4.12.0
-scrapy>=2.11.0
+# -- Utilities --
+colorlog>=6.8.0

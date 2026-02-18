@@ -1,0 +1,42 @@
+database:
+  mongodb_uri: ${MONGODB_URI}
+  database_name: career_scraper
+  collections:
+    jobs: jobs
+    companies: companies
+    history: scrape_history
+
+scraper:
+  user_agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  timeout: 30
+  max_retries: 3
+  retry_delay: 5
+  concurrent_requests: 5
+  rate_limit_delay: 2.0
+  min_confidence: 0.6
+  enable_ats_strategies: true
+
+llm:
+  provider: anthropic   # or "openai"
+  api_key: ${LLM_API_KEY}
+  model: claude-sonnet-4-20250514
+  temperature: 0.3
+  max_tokens: 2000
+
+email:
+  smtp_server: smtp.gmail.com
+  smtp_port: 587
+  sender_email: ${SENDER_EMAIL}
+  sender_password: ${SENDER_PASSWORD}
+  recipient_emails:
+    - ${RECIPIENT_EMAIL}
+  subject_prefix: "[Job Alert]"
+
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: logs/scraper.log
+
+schedule:
+  cron: "0 9 * * *"
+  timezone: UTC

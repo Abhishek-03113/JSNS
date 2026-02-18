@@ -1,0 +1,24 @@
+{{ subject }}
+Generated: {{ generated_at }}
+{{ "=" * 60 }}
+{{ new_jobs | length }} new job{{ "s" if new_jobs | length != 1 else "" }} found across {{ urls_scraped }} career pages.
+
+{% for item in new_jobs %}
+{% set job = item.job %}
+{% set analysis = item.analysis %}
+{{ "-" * 60 }}
+[{{ loop.index }}] {{ job.title }}
+    Company:  {{ job.company }}
+    Location: {{ job.location or "N/A" }}
+    Dept:     {{ job.department or "N/A" }}
+    URL:      {{ job.url }}
+{% if analysis %}
+    Match Score: {{ analysis.resume_score | round | int }}%
+    Matches:  {{ analysis.strong_matches[:5] | join(", ") }}
+    Missing:  {{ analysis.missing_skills[:4] | join(", ") }}
+    Advice:   {{ analysis.recommendations }}
+{% endif %}
+
+{% endfor %}
+{{ "=" * 60 }}
+ATS-Buddy | To unsubscribe, remove your email from config.

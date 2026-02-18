@@ -1,0 +1,262 @@
+%-------------------------
+% Resume in Latex
+% Author : Jake Gutierrez
+% Based off of: https://github.com/sb2nov/resume
+% License : MIT
+%------------------------
+
+\documentclass[letterpaper,11pt]{article}
+
+\usepackage{latexsym}
+\usepackage[empty]{fullpage}
+\usepackage{titlesec}
+\usepackage{marvosym}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\usepackage{fancyhdr}
+\usepackage[english]{babel}
+\usepackage{tabularx}
+\input{glyphtounicode}
+
+%----------FONT OPTIONS----------
+% sans-serif
+% \usepackage[sfdefault]{FiraSans}
+% \usepackage[sfdefault]{roboto}
+% \usepackage[sfdefault]{noto-sans}
+% \usepackage[default]{sourcesanspro}
+
+% serif
+% \usepackage{CormorantGaramond}
+% \usepackage{charter}
+
+\pagestyle{fancy}
+\fancyhf{} % clear all header and footer fields
+\fancyfoot{}
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% Fix footskip for fancyhdr
+\setlength{\footskip}{4.08003pt}
+
+% Adjust margins
+\addtolength{\oddsidemargin}{-0.5in}
+\addtolength{\evensidemargin}{-0.5in}
+\addtolength{\textwidth}{1in}
+\addtolength{\topmargin}{-.5in}
+\addtolength{\textheight}{1.0in}
+
+\urlstyle{same}
+
+\raggedbottom
+\raggedright
+\setlength{\tabcolsep}{0in}
+
+% Sections formatting
+\titleformat{\section}{
+  \vspace{-4pt}\scshape\raggedright\large
+}{}{0em}{}[\color{black}\titlerule\vspace{-5pt}]
+
+% Ensure that generate pdf is machine readable/ATS parsable
+\pdfgentounicode=1
+
+%-------------------------
+% Custom commands
+\newcommand{\resumeItem}[1]{
+  \item\small{
+    {#1 \vspace{-2pt}}
+  }
+}
+
+\newcommand{\resumeSubheading}[4]{
+  \vspace{-2pt}\item
+  \begin{tabular*}{0.97\textwidth}[t]{l@{\extracolsep{\fill}}r}
+    \textbf{#1} & #2 \\
+    \textit{\small#3} & \textit{\small #4} \\
+  \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubSubheading}[2]{
+  \item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    \textit{\small#1} & \textit{\small #2} \\
+  \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeProjectHeading}[2]{
+  \item
+  \begin{tabular*}{0.97\textwidth}{l@{\extracolsep{\fill}}r}
+    \small#1 & #2 \\
+  \end{tabular*}\vspace{-7pt}
+}
+
+\newcommand{\resumeSubItem}[1]{\resumeItem{#1}\vspace{-4pt}}
+
+\renewcommand\labelitemii{$\vcenter{\hbox{\tiny$\bullet$}}$}
+
+\newcommand{\resumeSubHeadingListStart}{\begin{itemize}[leftmargin=0.15in,
+      label={}]}
+    \newcommand{\resumeSubHeadingListEnd}{\end{itemize}}
+\newcommand{\resumeItemListStart}{\begin{itemize}}
+    \newcommand{\resumeItemListEnd}{\end{itemize}\vspace{-5pt}}
+
+%-------------------------------------------
+%%%%%%  RESUME STARTS HERE  %%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\begin{center}
+  \textbf{\Huge Abhishek Pawar} \\ \vspace{2pt}
+  \small +919420668042 $|$
+  \href{mailto:abhishek03113@gmail.com}{\underline{abhishek03113@gmail.com}}
+  $|$
+  \href{https://www.linkedin.com/in/abhishekpawar3113/}{\underline{Linkedin}}
+  $|$
+  \href{github.com/abhishek-03113}{\underline{Github}}
+\end{center}
+
+\section{Summary}
+\resumeSubHeadingListStart
+\resumeItem{Backend-focused Software Developer with experience in building
+  scalable APIs (FastAPI, Django) and distributed systems. Strong
+foundation in data structures, algorithms, and system design with hands-on experience in microcontroller programming,
+wireless communication protocols(Codeforces Max: 1270). Passionate about
+  system
+  design and automation.}
+
+\resumeSubHeadingListEnd
+
+%-----------EDUCATION-----------
+\section{Education}
+\resumeSubHeadingListStart
+\resumeSubheading
+{Savitribai Phule Pune University}{Pune, MH}
+{Bachelor of Engineering in Artificial Intelligence and Data Science}{Dec
+  2021--July 2025}
+\resumeItemListStart
+\resumeItem{\textbf{CGPA:} 8.76 / 10}
+\resumeItem{\textbf{Relevant Coursework:} Object-Oriented Programming,
+  Data Structures \& Algorithms, Database Systems, Operating Systems, Computer
+  Networks, Distributed Computing, Machine Learning, Artificial Neural
+  Networks,
+  Big Data Analytics}
+\resumeItemListEnd
+\resumeSubHeadingListEnd
+
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0.15in, label={}]
+  \small{
+  \item \textbf{Programming Languages:} Python, Java, C++, JavaScript, SQL
+  \item \textbf{Frameworks \& Libraries:} Django, FastAPI, Express.js, GraphQL,
+        gRPC, Pandas, PyTorch, Scikit-learn, OpenCV
+  \item \textbf{Databases \& Storage:} PostgreSQL, MySQL, MongoDB, Redis,
+        DynamoDB, Elasticsearch
+  \item \textbf{Cloud \& DevOps:} AWS, Azure, Docker
+  \item \textbf{Messaging \& Streaming:} Apache Kafka, RabbitMQ
+  \item \textbf{Tools \& Platforms:} Git, Linux, Postman, Jupyter Notebook
+        }
+\end{itemize}
+
+%-----------EXPERIENCE-----------
+\section{Experience}
+\resumeSubHeadingListStart
+\resumeSubheading
+{Research and Development Intern}{Dec. 2023 -- Mar. 2024}
+{Sustainfy Energy}{Pune, MH}
+\vspace{2px}
+\resumeItemListStart
+\resumeItem{Developed and deployed image processing pipelines for
+  Electroluminescence (EL) defect analysis in solar panels using PyTorch and
+  OpenCV, implementing computer vision algorithms that improved defect detection
+  accuracy by 40\%.}
+\resumeItem{Built scalable API services using FastAPI for real-time image
+  processing and analysis, integrating machine learning models with optimized
+  inference pipelines that achieved 50\% improvement in processing speed.}
+\resumeItem{Implemented multimedia processing workflows for industrial
+  quality control systems, handling batch processing of 10,000+ solar panel
+  images with automated defect classification and reporting.}
+\resumeItem{Designed data preprocessing and annotation pipelines using CVAT
+  and Roboflow, creating structured datasets for machine learning model training
+  and validation in renewable energy applications.}
+\resumeItem{Integrated computer vision solutions into web applications
+  using Flask and FastAPI, enabling real-time image analysis capabilities for
+  field engineers and quality control teams.}
+\resumeItemListEnd
+\resumeSubheading
+{Software Developer (Robotics)}{Oct. 2022 -- May 2023}
+{Robotics Team, Rudra (Robocon)}{Pune, MH}
+\resumeItemListStart
+\resumeItem{Developed communication protocols and data transmission
+  interfaces for autonomous robotic systems using C++ on ESP32 and Arduino
+  microcontrollers, enabling real-time coordination between multiple robot
+  subsystems.}
+\resumeItem{Implemented Over-the-Air (OTA) firmware update system for ESP32
+  devices leveraging FTP protocols and cloud servers, enabling seamless remote
+  updates during competition and testing phases.}
+\resumeItem{Built IoT-based robot monitoring system using Raspberry Pi
+  running Ubuntu Linux, integrating sensor data collection and wireless
+  communication for real-time robot status tracking.}
+\resumeItem{Worked with ROS2 (Robot Operating System) on Linux platforms
+  for robot navigation and control, utilizing Gazebo simulation environment for
+  testing and validation before hardware deployment.}
+\resumeItem{Designed and implemented device drivers for custom sensor
+  interfaces and actuator control systems, ensuring reliable hardware abstraction
+  and real-time performance.}
+\resumeItem{Collaborated with cross-functional hardware and embedded
+  software teams to integrate solutions for competition-ready autonomous robots,
+  focusing on system reliability and performance optimization.}
+\resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------PROJECTS-----------
+\section{Projects}
+\resumeSubHeadingListStart
+
+\resumeProjectHeading
+  {\textbf{Robo-Connect - IoT Communication System} $|$ \href{https://github.com/Abhishek-03113/Robo-Connect}{GitHub}}{}
+  \resumeItemListStart
+    \resumeItem{\textbf{Tech Stack:} C/C++, Arduino IDE, Java, JavaScript, ESP32, Android SDK, TCP/IP protocols}
+    \resumeItem{Developed comprehensive IoT communication platform enabling real-time data exchange between autonomous robots using C++ programming on ESP32 and Arduino microcontrollers.}
+    \resumeItem{Implemented robust communication protocols supporting TCP/IP and custom wireless protocols for low-latency data transmission in distributed robotics networks, achieving sub-100ms response times.}
+    \resumeItem{Built server-side components in C++ and JavaScript for centralized robot coordination and data routing, handling multiple concurrent robot connections with efficient resource management.}
+    \resumeItem{Created Android mobile application in Java with intuitive user interface for robot monitoring, control, and real-time data visualization during competition scenarios.}
+    \resumeItem{Integrated multiple communication layers including WiFi and Bluetooth protocols for redundant connectivity and system reliability in challenging environments.}
+  \resumeItemListEnd
+
+\resumeProjectHeading
+  {\textbf{Trend360 - AI-Powered Market Research Platform} $|$ \href{https://github.com/Abhishek-03113/Trend360}{GitHub}}{}
+  \resumeItemListStart
+    \resumeItem{\textbf{Tech Stack:} Python, FastAPI, Langchain, Next.js, AstraDB, Natural Language Processing, RESTful APIs}
+    \resumeItem{Architected and developed multi-agent platform for automated market research using Langchain framework and FastAPI, implementing scalable microservices architecture for data processing and analysis.}
+    \resumeItem{Built AI-driven trend detection system utilizing natural language processing algorithms to identify market opportunities and pain points from diverse data sources, generating actionable business insights.}
+    \resumeItem{Developed responsive frontend application using Next.js with real-time data visualization capabilities, implementing efficient state management and user-friendly interfaces for research findings.}
+    \resumeItem{Integrated AstraDB for high-performance data storage and retrieval, optimizing query performance for large-scale market data analysis and ensuring data consistency across distributed components.}
+    \resumeItem{Implemented automated research trigger detection algorithms that continuously monitor market trends and generate alerts for significant changes or opportunities.}
+  \resumeItemListEnd
+
+\resumeProjectHeading
+  {\textbf{Data-Vizard - Interactive Data Analysis Tool} $|$ \href{https://github.com/Abhishek-03113/Data-Vizard}{GitHub}}{Jan. 2024}
+  \resumeItemListStart
+    \resumeItem{\textbf{Tech Stack:} Python, Streamlit, Pandas, Matplotlib, Plotly, NumPy, Data Processing Libraries}
+    \resumeItem{Developed comprehensive data visualization and exploratory analysis tool supporting multiple file formats including CSV, JSON, Excel, and database connections for versatile data import capabilities.}
+    \resumeItem{Implemented interactive dashboard using Streamlit framework with real-time data processing capabilities, enabling users to perform statistical analysis, generate visualizations, and export insights.}
+    \resumeItem{Built automated data preprocessing pipeline with support for data cleaning, transformation, and feature engineering, streamlining the data analysis workflow for business and research applications.}
+    \resumeItem{Integrated advanced visualization libraries including Plotly and Matplotlib for creating dynamic charts, graphs, and statistical plots with customizable parameters and export functionality.}
+  \resumeItemListEnd
+
+\resumeSubHeadingListEnd
+
+%-----------COMPETITIVE PROGRAMMING----------- 
+\section{Competitive Programming}
+\resumeItemListStart
+  \resumeItem{Solved 800+ algorithmic problems focusing on data structures, optimization algorithms, and system design concepts relevant to embedded and distributed systems}
+  \resumeItem{\textbf{CodeChef Max Rating: 1710 (3 Star)}}
+  \resumeItem{\textbf{Ranked 40 globally in CodeChef's starters 175 contest.}}
+  \resumeItem{\textbf{Codeforces Max Rating: 1267 (Pupil)}}
+  \resumeItem{Ranked \textbf{Top 350 (Rank 313)} in IICPC Online Round, demonstrating ability to work under pressure and solve complex algorithmic challenges efficiently}
+\resumeItemListEnd
+
+
+\end{document}

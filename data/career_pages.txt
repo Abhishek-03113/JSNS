@@ -1,0 +1,14 @@
+# Career pages to scrape — one URL per line.
+# Lines starting with # are comments; blank lines are ignored.
+
+# --- Greenhouse ---
+# https://boards.greenhouse.io/yourcompany
+
+# --- Lever ---
+# https://jobs.lever.co/yourcompany
+
+# --- Workday ---
+# https://yourcompany.wd1.myworkdayjobs.com/careers
+
+# --- Custom / Generic ---
+# https://careers.yourcompany.com/jobs
