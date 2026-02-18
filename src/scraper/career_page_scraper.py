@@ -26,7 +26,7 @@ from src.config.settings import ScraperSettings
 from src.database.models import Company, Job, ScrapeHistory
 from src.database.mongodb_client import MongoDBClient
 from src.scraper.base_scraper import ScraperConfig
-from src.scraper.generic_parser import GenericCareerParser
+from src.scraper.generic_parser import APIDiscoveryParser
 from src.scraper.parsers.ats_strategy import ATSStrategy, get_strategy
 from src.utils.helpers import extract_domain, generate_job_id
 
@@ -165,27 +165,28 @@ class CareerPageScraper:
         Returns:
             (jobs, parser_name)
         """
-        # ---- ATS strategy ----
+        # ---- Named ATS strategy (known platform, rich field mapping) ----
         if self._settings.enable_ats_strategies:
             strategy = get_strategy(url)
             if strategy:
+                # Provide a minimal BaseScraper for HTTP helpers
+                _helper = APIDiscoveryParser(url, config=self._http_config)
                 try:
-                    generic = GenericCareerParser(url, config=self._http_config,
-                                                  min_confidence=self._settings.min_confidence)
-                    jobs = strategy.parse(url, generic)
+                    jobs = strategy.parse(url, _helper)
                     if jobs:
                         logger.info("[%s] %s → %d jobs", strategy.name, url, len(jobs))
                         return jobs, strategy.name
-                    logger.warning("[%s] no jobs returned for %s — falling back", strategy.name, url)
+                    logger.warning("[%s] no jobs from %s — falling back to discovery", strategy.name, url)
                 except Exception as exc:
-                    logger.warning("[%s] strategy error for %s: %s — falling back", strategy.name, url, exc)
+                    logger.warning("[%s] error for %s: %s — falling back to discovery", strategy.name, url, exc)
+                finally:
+                    _helper.close()
 
-        # ---- Generic parser ----
-        parser = GenericCareerParser(url, config=self._http_config,
-                                     min_confidence=self._settings.min_confidence)
+        # ---- API Discovery fallback (unknown platform) ----
+        parser = APIDiscoveryParser(url, config=self._http_config)
         jobs = parser.scrape_jobs()
-        logger.info("[universal] %s → %d jobs", url, len(jobs))
-        return jobs, "universal"
+        logger.info("[api-discovery] %s → %d jobs", url, len(jobs))
+        return jobs, "api-discovery"
 
     def _persist_jobs(
         self, raw_jobs: List[Dict[str, Any]], company: str, source_url: str

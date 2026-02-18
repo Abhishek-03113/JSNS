@@ -1,225 +1,376 @@
 """
-Generic Career Page Parser.
+API Discovery Parser — fallback for URLs not matched by any named ATS strategy.
 
-Works on ANY career page with no prior knowledge. Uses the existing
-JobPatternDetector heuristics to auto-detect job containers and field
-selectors, then extracts and normalises job data.
+When the orchestrator finds no registered ATS strategy, it hands the URL to
+this parser, which runs the five-stage APIDiscoveryEngine pipeline:
+  1. URL fingerprinting
+  2. Response-header inspection
+  3. Inline content / embedded JSON scanning
+  4. External JS file scanning
+  5. Common-path probing
 
-This is the PRIMARY parser — all ATS strategies fall back to this.
+Once a DiscoveredAPI is found, the parser calls that endpoint and normalises
+the raw JSON into the standard job dict shape.
+
+If discovery also fails, the parser logs a warning and returns an empty list.
+There is NO HTML scraping, NO CSS, NO browser automation anywhere in this file.
 """
 
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any, Dict, List, Optional
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 
-from bs4 import BeautifulSoup
-
+from src.scraper.api_discovery import APIDiscoveryEngine, DiscoveredAPI
 from src.scraper.base_scraper import BaseScraper, ScraperConfig
-from src.scraper.pattern_detector import JobPatternDetector
 from src.utils.helpers import clean_whitespace, truncate_text
 
 logger = logging.getLogger(__name__)
 
 
-class GenericCareerParser(BaseScraper):
+class APIDiscoveryParser(BaseScraper):
     """
-    Heuristic-driven scraper that handles any career page structure.
+    API-first fallback parser.
 
-    Pattern detection is cached after the first successful page load so
-    subsequent pages (pagination) skip the expensive detection step.
+    Implements the BaseScraper abstract interface so it slots directly
+    into the orchestrator wherever GenericCareerParser was used before.
     """
 
     def __init__(
         self,
         url: str,
         config: Optional[ScraperConfig] = None,
-        min_confidence: float = 0.6,
     ) -> None:
         super().__init__(config)
         self.url = url.rstrip("/")
-        self.min_confidence = min_confidence
-        self._detector = JobPatternDetector(min_confidence=min_confidence)
-
-        # Cached pattern state
-        self._container_selector: Optional[str] = None
-        self._field_selectors: Dict[str, str] = {}
-        self._patterns_detected: bool = False
+        self._engine = APIDiscoveryEngine(
+            session=self.session,
+            timeout=self.config.timeout,
+        )
 
     # ------------------------------------------------------------------
     # Public API
     # ------------------------------------------------------------------
 
-    def scrape_jobs(self, max_pages: int = 1, **kwargs) -> List[Dict[str, Any]]:
+    def scrape_jobs(self, **kwargs) -> List[Dict[str, Any]]:
         """
-        Scrape all job listings from the career page.
-
-        Args:
-            max_pages: Maximum number of paginated pages to scrape.
-            **kwargs: Ignored (kept for interface consistency).
-
-        Returns:
-            List of normalised job dicts.
+        Discover the backing API, call it, and return normalised job dicts.
+        Returns an empty list if discovery fails or the API returns no jobs.
         """
-        all_jobs: List[Dict[str, Any]] = []
+        discovered = self._engine.discover(self.url)
+        if not discovered:
+            logger.warning("[api-discovery] No API found for %s", self.url)
+            return []
 
-        for page in range(1, max_pages + 1):
-            page_url = self._build_page_url(self.url, page)
-            logger.info("Fetching page %d: %s", page, page_url)
+        logger.info(
+            "[api-discovery] %s -> %s via %s",
+            self.url, discovered.ats_type, discovered.source,
+        )
 
-            soup = self.fetch_page(page_url)
-            if not soup:
-                logger.warning("Failed to fetch %s — stopping pagination", page_url)
-                break
+        dispatcher = {
+            "greenhouse":      self._parse_greenhouse,
+            "lever":           self._parse_lever,
+            "workday":         self._parse_workday,
+            "ashby":           self._parse_ashby,
+            "smartrecruiters": self._parse_smartrecruiters,
+            "workable":        self._parse_workable,
+            "recruitee":       self._parse_recruitee,
+            "bamboohr":        self._parse_bamboohr,
+            "breezy":          self._parse_breezy,
+            "pinpoint":        self._parse_pinpoint,
+            "jobvite":         self._parse_jobvite,
+            "generic_api":     self._parse_generic,
+        }
 
-            if not self._patterns_detected:
-                self._detect_patterns(soup)
-
-            jobs = self._extract_jobs(soup)
-            if not jobs:
-                logger.info("No jobs on page %d — stopping pagination", page)
-                break
-
-            all_jobs.extend(jobs)
-            logger.info("Found %d jobs on page %d", len(jobs), page)
-
-            # Stop if no next page
-            if not self._has_next_page(soup):
-                break
-
-        logger.info("Total generic-parser jobs: %d from %s", len(all_jobs), self.url)
-        return all_jobs
-
-    def parse_job_listing(self, element: Any) -> Dict[str, Any]:
-        """Extract raw fields from one job container element."""
-        try:
-            title = self._safe_text(element, self._field_selectors.get("title", "h3,h2,.title,a"))
-            location = self._safe_text(element, self._field_selectors.get("location", '.location,[class*="location"]'))
-            department = self._safe_text(element, self._field_selectors.get("department", '.department,[class*="department"]'))
-            url = self._extract_url(element)
-            description = truncate_text(clean_whitespace(element.get_text(separator=" ")), 600)
-
-            return {
-                "title": title,
-                "location": location,
-                "department": department,
-                "description": description,
-                "url": url,
-                "ats_type": "universal",
-            }
-        except Exception as exc:
-            logger.debug("Error parsing element: %s", exc)
-            return {}
-
-    def analyze_page(self) -> Dict[str, Any]:
-        """Return detected patterns for a career page (useful for debugging)."""
-        soup = self.fetch_page(self.url)
-        if not soup:
-            return {"error": "Failed to fetch page"}
-        return self._detector.analyze_page_structure(soup)
-
-    # ------------------------------------------------------------------
-    # Pattern detection
-    # ------------------------------------------------------------------
-
-    def _detect_patterns(self, soup: BeautifulSoup) -> None:
-        container_selector, confidence = self._detector.detect_job_container(soup)
-        if container_selector:
-            self._container_selector = container_selector
-            containers = soup.select(container_selector)[:10]
-            field_map = self._detector.detect_field_selectors(containers)
-            self._field_selectors = {
-                field: selector for field, (selector, _) in field_map.items()
-            }
-            self._patterns_detected = True
-            logger.debug(
-                "Patterns detected — container: %s | fields: %s | confidence: %.2f",
-                container_selector, list(self._field_selectors), confidence,
-            )
-        else:
-            logger.warning("Pattern detection failed for %s", self.url)
-            self._patterns_detected = False
-
-    # ------------------------------------------------------------------
-    # Extraction helpers
-    # ------------------------------------------------------------------
-
-    def _extract_jobs(self, soup: BeautifulSoup) -> List[Dict[str, Any]]:
-        if not self._container_selector:
-            return self._fallback_extraction(soup)
-
-        jobs = []
-        for element in soup.select(self._container_selector):
-            raw = self.parse_job_listing(element)
-            if raw.get("title"):
-                jobs.append(self.normalize_job_data(raw))
+        parser_fn = dispatcher.get(discovered.ats_type, self._parse_generic)
+        jobs = parser_fn(discovered)
+        logger.info(
+            "[api-discovery] %s -> %d jobs (ats=%s, source=%s)",
+            self.url, len(jobs), discovered.ats_type, discovered.source,
+        )
         return jobs
 
-    def _fallback_extraction(self, soup: BeautifulSoup) -> List[Dict[str, Any]]:
-        """Last-resort extraction: grab any <a> with job-like text."""
-        logger.warning("Using fallback extraction for %s", self.url)
-        jobs = []
-        job_pattern = re.compile(
-            r"\b(engineer|developer|manager|designer|analyst|scientist|lead|director|intern)\b",
-            re.IGNORECASE,
-        )
-        seen: set = set()
-        for tag in soup.find_all("a", href=True):
-            text = tag.get_text(strip=True)
-            if len(text) < 8 or len(text) > 120:
-                continue
-            if not job_pattern.search(text):
-                continue
-            href = tag["href"]
-            if not href.startswith("http"):
-                href = urljoin(self.url, href)
-            if href in seen:
-                continue
-            seen.add(href)
+    def parse_job_listing(self, element: Any) -> Dict[str, Any]:
+        """Not used — required by BaseScraper ABC only."""
+        return {}
+
+    # ------------------------------------------------------------------
+    # Per-platform normalisers
+    # ------------------------------------------------------------------
+
+    def _parse_greenhouse(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data or "jobs" not in data:
+            return []
+        jobs: List[Dict[str, Any]] = []
+        for item in data["jobs"]:
+            meta = {m["name"]: m["value"] for m in item.get("metadata", []) if m.get("value")}
             jobs.append(self.normalize_job_data({
-                "title": text,
-                "url": href,
-                "ats_type": "universal-fallback",
+                "title":       item.get("title", ""),
+                "location":    item.get("location", {}).get("name", ""),
+                "department":  item.get("departments", [{}])[0].get("name", "") if item.get("departments") else "",
+                "description": item.get("content", "")[:1000],
+                "url":         item.get("absolute_url", ""),
+                "posted_date": item.get("updated_at"),
+                "experience":  meta.get("experience_level", meta.get("seniority", "")),
+                "ats_type":    "greenhouse",
             }))
         return jobs
 
-    def _safe_text(self, element: Any, selector: str, default: str = "") -> str:
-        """Try multiple comma-separated selectors; return the first non-empty result."""
-        for sel in [s.strip() for s in selector.split(",")]:
-            try:
-                found = element.select_one(sel)
-                if found:
-                    text = clean_whitespace(found.get_text())
-                    if text:
-                        return text
-            except Exception:
+    def _parse_lever(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data or not isinstance(data, list):
+            return []
+        jobs: List[Dict[str, Any]] = []
+        for item in data:
+            cats = item.get("categories", {})
+            jobs.append(self.normalize_job_data({
+                "title":       item.get("text", ""),
+                "location":    cats.get("location", item.get("workplaceType", "")),
+                "department":  cats.get("team", cats.get("department", "")),
+                "description": item.get("descriptionPlain", item.get("description", ""))[:1000],
+                "url":         item.get("hostedUrl", ""),
+                "posted_date": item.get("createdAt"),
+                "experience":  cats.get("level", ""),
+                "ats_type":    "lever",
+            }))
+        return jobs
+
+    def _parse_workday(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        all_jobs: List[Dict[str, Any]] = []
+        offset, limit = 0, 20
+        while True:
+            resp = self.fetch_json(
+                d.api_url, method="POST",
+                json={"appliedFacets": {}, "limit": limit, "offset": offset, "searchText": ""},
+                headers={"Content-Type": "application/json", "Accept": "application/json"},
+            )
+            if not resp:
+                break
+            postings = resp.get("jobPostings", [])
+            total    = resp.get("total", 0)
+            for item in postings:
+                path = item.get("externalPath", "")
+                all_jobs.append(self.normalize_job_data({
+                    "title":       item.get("title", ""),
+                    "location":    item.get("locationsText", item.get("primaryLocation", "")),
+                    "department":  item.get("jobCategoryText", ""),
+                    "url":         urljoin(self.url, path) if path else "",
+                    "posted_date": item.get("postedOn"),
+                    "ats_type":    "workday",
+                }))
+            offset += limit
+            if offset >= total or not postings:
+                break
+        return all_jobs
+
+    def _parse_ashby(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data:
+            return []
+        postings = data.get("jobPostings", data if isinstance(data, list) else [])
+        jobs: List[Dict[str, Any]] = []
+        for item in postings:
+            loc = item.get("locationName", "") or item.get("location", {})
+            jobs.append(self.normalize_job_data({
+                "title":       item.get("title", ""),
+                "location":    loc if isinstance(loc, str) else loc.get("city", ""),
+                "department":  item.get("departmentName", ""),
+                "description": item.get("descriptionHtml", "")[:1000],
+                "url":         item.get("jobUrl", item.get("applyUrl", "")),
+                "posted_date": item.get("publishedAt"),
+                "experience":  item.get("employmentType", ""),
+                "ats_type":    "ashby",
+            }))
+        return jobs
+
+    def _parse_smartrecruiters(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        all_jobs: List[Dict[str, Any]] = []
+        offset, limit = 0, 100
+        base = d.api_url.split("?")[0]
+        while True:
+            data = self.fetch_json(f"{base}?limit={limit}&offset={offset}")
+            if not data or "content" not in data:
+                break
+            for item in data["content"]:
+                loc = item.get("location", {})
+                all_jobs.append(self.normalize_job_data({
+                    "title":       item.get("name", ""),
+                    "location":    f"{loc.get('city', '')} {loc.get('country', '')}".strip(),
+                    "department":  item.get("department", {}).get("label", ""),
+                    "url":         item.get("ref", ""),
+                    "posted_date": item.get("releasedDate"),
+                    "experience":  item.get("experienceLevel", ""),
+                    "ats_type":    "smartrecruiters",
+                }))
+            total = data.get("totalFound", 0)
+            offset += limit
+            if offset >= total:
+                break
+        return all_jobs
+
+    def _parse_workable(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(
+            d.api_url, method="POST",
+            json={"query": "", "location": [], "department": [], "worktype": [], "remote": []},
+            headers={"Content-Type": "application/json"},
+        )
+        if not data:
+            data = self.fetch_json(d.api_url)
+        if not data:
+            return []
+        results = data.get("results", data.get("jobs", []))
+        jobs: List[Dict[str, Any]] = []
+        for item in results:
+            loc = item.get("location", {})
+            jobs.append(self.normalize_job_data({
+                "title":       item.get("title", ""),
+                "location":    loc.get("city", "") if isinstance(loc, dict) else str(loc),
+                "department":  item.get("department", ""),
+                "url":         item.get("url", item.get("shortlink", "")),
+                "posted_date": item.get("published_on"),
+                "ats_type":    "workable",
+            }))
+        return jobs
+
+    def _parse_recruitee(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data or "offers" not in data:
+            return []
+        jobs: List[Dict[str, Any]] = []
+        for item in data["offers"]:
+            jobs.append(self.normalize_job_data({
+                "title":       item.get("title", ""),
+                "location":    item.get("city", ""),
+                "department":  item.get("department", ""),
+                "description": item.get("description", "")[:1000],
+                "url":         item.get("careers_url", ""),
+                "posted_date": item.get("published_at"),
+                "ats_type":    "recruitee",
+            }))
+        return jobs
+
+    def _parse_bamboohr(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url, headers={"Accept": "application/json"})
+        if not data:
+            return []
+        positions = data.get("result", data.get("positions", []))
+        slug = d.token
+        jobs: List[Dict[str, Any]] = []
+        for item in positions:
+            loc = item.get("location", {})
+            jobs.append(self.normalize_job_data({
+                "title":      item.get("jobOpeningName", item.get("title", "")),
+                "location":   loc.get("city", "") if isinstance(loc, dict) else str(loc),
+                "department": item.get("departmentLabel", ""),
+                "url":        f"https://{slug}.bamboohr.com/careers/{item.get('jobId', '')}",
+                "ats_type":   "bamboohr",
+            }))
+        return jobs
+
+    def _parse_breezy(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data or not isinstance(data, list):
+            return []
+        jobs: List[Dict[str, Any]] = []
+        for item in data:
+            loc = item.get("location", {})
+            location = (
+                f"{loc.get('city', '')} {loc.get('country', '')}".strip()
+                if isinstance(loc, dict) else str(loc)
+            )
+            jobs.append(self.normalize_job_data({
+                "title":       item.get("name", ""),
+                "location":    location,
+                "department":  item.get("department", {}).get("name", "") if isinstance(item.get("department"), dict) else "",
+                "description": item.get("description", "")[:1000],
+                "url":         item.get("url", ""),
+                "ats_type":    "breezy",
+            }))
+        return jobs
+
+    def _parse_pinpoint(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data:
+            return []
+        items = data if isinstance(data, list) else data.get("data", data.get("jobs", []))
+        jobs: List[Dict[str, Any]] = []
+        for item in items:
+            attr = item.get("attributes", item)
+            jobs.append(self.normalize_job_data({
+                "title":       attr.get("title", ""),
+                "location":    attr.get("location", ""),
+                "department":  attr.get("team", ""),
+                "description": attr.get("description", "")[:1000],
+                "url":         attr.get("apply_url", attr.get("url", "")),
+                "posted_date": attr.get("published_at"),
+                "ats_type":    "pinpoint",
+            }))
+        return jobs
+
+    def _parse_jobvite(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        data = self.fetch_json(d.api_url)
+        if not data:
+            return []
+        items = data.get("jobs", data if isinstance(data, list) else [])
+        jobs: List[Dict[str, Any]] = []
+        for item in items:
+            jobs.append(self.normalize_job_data({
+                "title":       item.get("title", ""),
+                "location":    item.get("location", ""),
+                "department":  item.get("categories", {}).get("department", ""),
+                "description": item.get("briefDescription", "")[:1000],
+                "url":         item.get("applyLink", item.get("jobUrl", "")),
+                "posted_date": item.get("date"),
+                "ats_type":    "jobvite",
+            }))
+        return jobs
+
+    def _parse_generic(self, d: DiscoveredAPI) -> List[Dict[str, Any]]:
+        """Lightweight normaliser for any JSON array/object from a discovered API."""
+        data = self.fetch_json(d.api_url)
+        if not data:
+            return []
+
+        envelope_keys = ["jobs", "results", "data", "postings", "positions", "offers", "items"]
+        items = data if isinstance(data, list) else None
+        if items is None:
+            for key in envelope_keys:
+                if key in data and isinstance(data[key], list):
+                    items = data[key]
+                    break
+        if not items:
+            return []
+
+        jobs: List[Dict[str, Any]] = []
+        for item in items:
+            if not isinstance(item, dict):
                 continue
-        return default
-
-    def _extract_url(self, element: Any) -> str:
-        """Find the most relevant URL inside a job element."""
-        links = element.find_all("a", href=True)
-        if not links:
-            return ""
-        # Prefer the largest-text link (likely the job title link)
-        best = max(links, key=lambda a: len(a.get_text(strip=True)), default=links[0])
-        href = best["href"]
-        if not href.startswith("http"):
-            href = urljoin(self.url, href)
-        return href
-
-    def _has_next_page(self, soup: BeautifulSoup) -> bool:
-        """Detect pagination 'next' link."""
-        for selector in ["a[rel='next']", 'a:contains("Next")', '.pagination .next', '[aria-label="Next page"]']:
-            if soup.select_one(selector):
-                return True
-        return False
-
-    @staticmethod
-    def _build_page_url(base_url: str, page: int) -> str:
-        if page == 1:
-            return base_url
-        sep = "&" if "?" in base_url else "?"
-        return f"{base_url}{sep}page={page}"
+            title = (
+                item.get("title") or item.get("name") or item.get("job_title") or
+                item.get("jobTitle") or item.get("text") or ""
+            )
+            if not title:
+                continue
+            location = (
+                item.get("location") or item.get("city") or
+                item.get("office") or item.get("locationText") or ""
+            )
+            if isinstance(location, dict):
+                location = location.get("name", location.get("city", ""))
+            url = (
+                item.get("url") or item.get("applyUrl") or item.get("apply_url") or
+                item.get("absolute_url") or item.get("hostedUrl") or
+                item.get("link") or item.get("jobUrl") or ""
+            )
+            jobs.append(self.normalize_job_data({
+                "title":       truncate_text(clean_whitespace(str(title)), 200),
+                "location":    truncate_text(clean_whitespace(str(location)), 200),
+                "department":  str(item.get("department", item.get("team", ""))),
+                "description": truncate_text(str(item.get("description", item.get("summary", ""))), 1000),
+                "url":         str(url),
+                "posted_date": item.get("createdAt") or item.get("posted_date") or item.get("publishedAt"),
+                "ats_type":    d.ats_type,
+            }))
+        return jobs

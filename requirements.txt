@@ -2,8 +2,11 @@
 # ATS-Buddy Career Scraper — Python dependencies
 # --------------------------------------------------------------------------
 
-# -- HTTP / Scraping --
+# -- HTTP / API-based scraping (primary) --
 requests>=2.31.0
+
+# -- HTML parsing (secondary — used only by base_scraper.fetch_page helper,
+#    not by the API discovery pipeline) --
 beautifulsoup4>=4.12.0
 lxml>=4.9.0
 
