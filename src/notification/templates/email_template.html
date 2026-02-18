@@ -1,114 +1,230 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{ subject }}</title>
-  <style>
-    body { font-family: Arial, Helvetica, sans-serif; background:#f5f5f5; margin:0; padding:0; }
-    .wrapper { max-width:680px; margin:32px auto; background:#ffffff; border-radius:8px; overflow:hidden; }
-    .header { background:#1a1a2e; color:#ffffff; padding:28px 32px; }
-    .header h1 { margin:0; font-size:22px; }
-    .header p  { margin:6px 0 0; opacity:.75; font-size:13px; }
-    .summary { background:#eef2ff; padding:16px 32px; border-bottom:1px solid #d0d7e6; font-size:14px; color:#333; }
-    .job-card { padding:24px 32px; border-bottom:1px solid #eeeeee; }
-    .job-title a { font-size:18px; font-weight:700; color:#1a1a2e; text-decoration:none; }
-    .job-title a:hover { text-decoration:underline; }
-    .job-meta    { margin:8px 0; font-size:13px; color:#666; }
-    .job-meta span { margin-right:14px; }
-    /* Score badge */
-    .score-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:13px; font-weight:700; }
-    .score-green  { background:#d4edda; color:#155724; }
-    .score-yellow { background:#fff3cd; color:#856404; }
-    .score-red    { background:#f8d7da; color:#721c24; }
-    /* Skill tags */
-    .tags { margin:10px 0; }
-    .tag { display:inline-block; padding:2px 9px; border-radius:10px; font-size:12px; margin:2px; }
-    .tag-green  { background:#d4edda; color:#155724; }
-    .tag-orange { background:#fff3cd; color:#856404; }
-    /* CTA */
-    .cta { display:inline-block; margin-top:14px; padding:9px 22px; background:#1a1a2e; color:#fff; border-radius:5px; text-decoration:none; font-size:14px; font-weight:600; }
-    .cta:hover { background:#2d2d5a; }
-    .footer { padding:16px 32px; font-size:11px; color:#999; text-align:center; background:#f9f9f9; }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ subject }}</title>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+
+        .wrapper {
+            max-width: 680px;
+            margin: 32px auto;
+            background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: #1a1a2e;
+            color: #ffffff;
+            padding: 28px 32px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+        }
+
+        .header p {
+            margin: 6px 0 0;
+            opacity: .75;
+            font-size: 13px;
+        }
+
+        .summary {
+            background: #eef2ff;
+            padding: 16px 32px;
+            border-bottom: 1px solid #d0d7e6;
+            font-size: 14px;
+            color: #333;
+        }
+
+        .job-card {
+            padding: 24px 32px;
+            border-bottom: 1px solid #eeeeee;
+        }
+
+        .job-title a {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1a1a2e;
+            text-decoration: none;
+        }
+
+        .job-title a:hover {
+            text-decoration: underline;
+        }
+
+        .job-meta {
+            margin: 8px 0;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .job-meta span {
+            margin-right: 14px;
+        }
+
+        /* Score badge */
+        .score-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 700;
+        }
+
+        .score-green {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .score-yellow {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .score-red {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        /* Skill tags */
+        .tags {
+            margin: 10px 0;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 2px 9px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin: 2px;
+        }
+
+        .tag-green {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .tag-orange {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        /* CTA */
+        .cta {
+            display: inline-block;
+            margin-top: 14px;
+            padding: 9px 22px;
+            background: #1a1a2e;
+            color: #fff;
+            border-radius: 5px;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .cta:hover {
+            background: #2d2d5a;
+        }
+
+        .footer {
+            padding: 16px 32px;
+            font-size: 11px;
+            color: #999;
+            text-align: center;
+            background: #f9f9f9;
+        }
+    </style>
 </head>
+
 <body>
-<div class="wrapper">
+    <div class="wrapper">
 
-  <!-- Header -->
-  <div class="header">
-    <h1>{{ subject }}</h1>
-    <p>Generated {{ generated_at }}</p>
-  </div>
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ subject }}</h1>
+            <p>Generated {{ generated_at }}</p>
+        </div>
 
-  <!-- Summary bar -->
-  <div class="summary">
-    <strong>{{ new_jobs | length }}</strong> new job{{ "s" if new_jobs | length != 1 else "" }} found
-    &nbsp;|&nbsp; Scraped <strong>{{ urls_scraped }}</strong> career pages
-    &nbsp;|&nbsp; Run at <strong>{{ generated_at }}</strong>
-  </div>
+        <!-- Summary bar -->
+        <div class="summary">
+            <strong>{{ new_jobs | length }}</strong> new job{{ "s" if new_jobs | length != 1 else "" }} found
+            &nbsp;|&nbsp; Scraped <strong>{{ urls_scraped }}</strong> career pages
+            &nbsp;|&nbsp; Run at <strong>{{ generated_at }}</strong>
+        </div>
 
-  <!-- Job cards -->
-  {% for item in new_jobs %}
-  {% set job = item.job %}
-  {% set analysis = item.analysis %}
-  <div class="job-card">
+        <!-- Job cards -->
+        {% for item in new_jobs %}
+        {% set job = item.job %}
+        {% set analysis = item.analysis %}
+        <div class="job-card">
 
-    <div class="job-title">
-      <a href="{{ job.url }}">{{ job.title }}</a>
+            <div class="job-title">
+                <a href="{{ job.url }}">{{ job.title }}</a>
+            </div>
+
+            <div class="job-meta">
+                <span>🏢 {{ job.company }}</span>
+                {% if job.location %}<span>📍 {{ job.location }}</span>{% endif %}
+                {% if job.department %}<span>🏷 {{ job.department }}</span>{% endif %}
+                {% if job.posted_date %}<span>📅 {{ job.posted_date | string | truncate(10, True, '') }}</span>{% endif
+                %}
+            </div>
+
+            {% if analysis %}
+            <div>
+                Match Score:
+                {% if analysis.resume_score >= 70 %}
+                <span class="score-badge score-green">{{ analysis.resume_score | round | int }}%</span>
+                {% elif analysis.resume_score >= 50 %}
+                <span class="score-badge score-yellow">{{ analysis.resume_score | round | int }}%</span>
+                {% else %}
+                <span class="score-badge score-red">{{ analysis.resume_score | round | int }}%</span>
+                {% endif %}
+            </div>
+
+            {% if analysis.strong_matches %}
+            <div class="tags">
+                <strong style="font-size:12px;">Matches:</strong>
+                {% for s in analysis.strong_matches[:6] %}
+                <span class="tag tag-green">{{ s }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if analysis.missing_skills %}
+            <div class="tags">
+                <strong style="font-size:12px;">Missing:</strong>
+                {% for s in analysis.missing_skills[:4] %}
+                <span class="tag tag-orange">{{ s }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if analysis.recommendations %}
+            <p style="font-size:13px;color:#444;margin:10px 0;">{{ analysis.recommendations }}</p>
+            {% endif %}
+            {% endif %}
+
+            <a href="{{ job.url }}" class="cta">Apply Now →</a>
+        </div>
+        {% endfor %}
+
+        <!-- Footer -->
+        <div class="footer">
+            You are receiving this because you set up ATS-Buddy job alerts.<br />
+            To stop, remove your email from the configuration.
+        </div>
     </div>
-
-    <div class="job-meta">
-      <span>🏢 {{ job.company }}</span>
-      {% if job.location %}<span>📍 {{ job.location }}</span>{% endif %}
-      {% if job.department %}<span>🏷 {{ job.department }}</span>{% endif %}
-      {% if job.posted_date %}<span>📅 {{ job.posted_date | string | truncate(10, True, '') }}</span>{% endif %}
-    </div>
-
-    {% if analysis %}
-    <div>
-      Match Score:
-      {% if analysis.resume_score >= 70 %}
-        <span class="score-badge score-green">{{ analysis.resume_score | round | int }}%</span>
-      {% elif analysis.resume_score >= 50 %}
-        <span class="score-badge score-yellow">{{ analysis.resume_score | round | int }}%</span>
-      {% else %}
-        <span class="score-badge score-red">{{ analysis.resume_score | round | int }}%</span>
-      {% endif %}
-    </div>
-
-    {% if analysis.strong_matches %}
-    <div class="tags">
-      <strong style="font-size:12px;">Matches:</strong>
-      {% for s in analysis.strong_matches[:6] %}
-        <span class="tag tag-green">{{ s }}</span>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if analysis.missing_skills %}
-    <div class="tags">
-      <strong style="font-size:12px;">Missing:</strong>
-      {% for s in analysis.missing_skills[:4] %}
-        <span class="tag tag-orange">{{ s }}</span>
-      {% endfor %}
-    </div>
-    {% endif %}
-
-    {% if analysis.recommendations %}
-    <p style="font-size:13px;color:#444;margin:10px 0;">{{ analysis.recommendations }}</p>
-    {% endif %}
-    {% endif %}
-
-    <a href="{{ job.url }}" class="cta">Apply Now →</a>
-  </div>
-  {% endfor %}
-
-  <!-- Footer -->
-  <div class="footer">
-    You are receiving this because you set up ATS-Buddy job alerts.<br/>
-    To stop, remove your email from the configuration.
-  </div>
-</div>
 </body>
+
 </html>

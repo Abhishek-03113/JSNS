@@ -43,12 +43,16 @@ class LLMProvider:
         if provider == "anthropic":
             try:
                 import anthropic  # type: ignore
+
                 return anthropic.Anthropic(api_key=self._settings.api_key)
             except ImportError as exc:
-                raise ImportError("Install anthropic>=0.40: pip install anthropic") from exc
+                raise ImportError(
+                    "Install anthropic>=0.40: pip install anthropic"
+                ) from exc
         elif provider == "openai":
             try:
                 import openai  # type: ignore
+
                 return openai.OpenAI(api_key=self._settings.api_key)
             except ImportError as exc:
                 raise ImportError("Install openai>=1.50: pip install openai") from exc

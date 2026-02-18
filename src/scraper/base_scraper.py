@@ -95,11 +95,15 @@ class BaseScraper(ABC):
             time.sleep(self.config.rate_limit_delay - elapsed)
         self._last_request_time = time.time()
 
-    def _make_request(self, url: str, method: str = "GET", **kwargs) -> Optional[requests.Response]:
+    def _make_request(
+        self, url: str, method: str = "GET", **kwargs
+    ) -> Optional[requests.Response]:
         self._rate_limit()
         for attempt in range(1, self.config.max_retries + 1):
             try:
-                logger.debug("Fetching %s (attempt %d/%d)", url, attempt, self.config.max_retries)
+                logger.debug(
+                    "Fetching %s (attempt %d/%d)", url, attempt, self.config.max_retries
+                )
                 resp = self.session.request(
                     method.upper(),
                     url,
@@ -147,7 +151,9 @@ class BaseScraper(ABC):
         except Exception:
             return default
 
-    def extract_attribute(self, element: Any, selector: str, attribute: str, default: str = "") -> str:
+    def extract_attribute(
+        self, element: Any, selector: str, attribute: str, default: str = ""
+    ) -> str:
         """Return attribute value of the first element matching *selector*."""
         try:
             found = element.select_one(selector)
@@ -162,15 +168,15 @@ class BaseScraper(ABC):
     def normalize_job_data(self, raw: Dict[str, Any]) -> Dict[str, Any]:
         """Return a standardised job dict from a raw scraped dict."""
         return {
-            "title":            raw.get("title", ""),
-            "company":          raw.get("company", ""),
-            "location":         raw.get("location", ""),
-            "department":       raw.get("department", ""),
-            "experience":       raw.get("experience", ""),
-            "description":      raw.get("description", ""),
-            "url":              raw.get("url", ""),
-            "posted_date":      raw.get("posted_date"),
-            "ats_type":         raw.get("ats_type", "unknown"),
+            "title": raw.get("title", ""),
+            "company": raw.get("company", ""),
+            "location": raw.get("location", ""),
+            "department": raw.get("department", ""),
+            "experience": raw.get("experience", ""),
+            "description": raw.get("description", ""),
+            "url": raw.get("url", ""),
+            "posted_date": raw.get("posted_date"),
+            "ats_type": raw.get("ats_type", "unknown"),
         }
 
     # ------------------------------------------------------------------

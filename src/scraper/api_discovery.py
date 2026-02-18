@@ -34,11 +34,11 @@ logger = logging.getLogger(__name__)
 class DiscoveredAPI(NamedTuple):
     """Describes a successfully discovered API endpoint."""
 
-    ats_type:    str          # e.g. "greenhouse", "lever", "lever_v2", "unknown"
-    api_url:     str          # Callable endpoint URL
-    token:       str          # Board/company token or slug (empty string if N/A)
-    source:      str          # How it was found: "header" | "meta" | "js_scan" | "probe"
-    extra:       Dict[str, Any]  # ATS-specific extra params (e.g. department filter)
+    ats_type: str  # e.g. "greenhouse", "lever", "lever_v2", "unknown"
+    api_url: str  # Callable endpoint URL
+    token: str  # Board/company token or slug (empty string if N/A)
+    source: str  # How it was found: "header" | "meta" | "js_scan" | "probe"
+    extra: Dict[str, Any]  # ATS-specific extra params (e.g. department filter)
 
 
 # ---------------------------------------------------------------------------
@@ -53,81 +53,81 @@ _GH_TOKEN_RE = re.compile(
 
 # Lever company slug from canonical URL or JS config
 _LEVER_SLUG_RE = re.compile(
-    r'jobs\.lever\.co/([A-Za-z0-9_-]+)',
+    r"jobs\.lever\.co/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 _LEVER_API_RE = re.compile(
-    r'api\.lever\.co/v\d/postings/([A-Za-z0-9_-]+)',
+    r"api\.lever\.co/v\d/postings/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
 # Workday tenant ID from myworkdayjobs.com subdomain
 _WORKDAY_TENANT_RE = re.compile(
-    r'https?://([A-Za-z0-9_-]+)\.myworkdayjobs\.com',
+    r"https?://([A-Za-z0-9_-]+)\.myworkdayjobs\.com",
     re.IGNORECASE,
 )
 _WORKDAY_PATH_RE = re.compile(
-    r'myworkdayjobs\.com/([A-Za-z0-9_-]+)/([A-Za-z0-9_-]+)',
+    r"myworkdayjobs\.com/([A-Za-z0-9_-]+)/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
 # iCIMS board ID
 _ICIMS_BOARD_RE = re.compile(
-    r'careers\.icims\.com/jobs/([A-Za-z0-9]+)',
+    r"careers\.icims\.com/jobs/([A-Za-z0-9]+)",
     re.IGNORECASE,
 )
 
 # Ashby (used by many YC / growth startups)
 _ASHBY_SLUG_RE = re.compile(
-    r'jobs\.ashbyhq\.com/([A-Za-z0-9_-]+)',
+    r"jobs\.ashbyhq\.com/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
 # Rippling / Rippling Jobs
 _RIPPLING_RE = re.compile(
-    r'app\.rippling\.com/jobs/([A-Za-z0-9_-]+)',
+    r"app\.rippling\.com/jobs/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
 # BambooHR
 _BAMBOO_SLUG_RE = re.compile(
-    r'([A-Za-z0-9_-]+)\.bamboohr\.com',
+    r"([A-Za-z0-9_-]+)\.bamboohr\.com",
     re.IGNORECASE,
 )
 
 # SmartRecruiters
 _SMART_RE = re.compile(
-    r'careers\.smartrecruiters\.com/([A-Za-z0-9_-]+)',
+    r"careers\.smartrecruiters\.com/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
 # Jobvite
 _JOBVITE_RE = re.compile(
-    r'jobs\.jobvite\.com/([A-Za-z0-9_-]+)',
+    r"jobs\.jobvite\.com/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
 # JazzHR
 _JAZZHR_RE = re.compile(
-    r'([A-Za-z0-9_-]+)\.applytojob\.com',
+    r"([A-Za-z0-9_-]+)\.applytojob\.com",
     re.IGNORECASE,
 )
 
 # Breezy HR
 _BREEZY_RE = re.compile(
-    r'([A-Za-z0-9_-]+)\.breezy\.hr',
+    r"([A-Za-z0-9_-]+)\.breezy\.hr",
     re.IGNORECASE,
 )
 
 # Recruitee
 _RECRUITEE_RE = re.compile(
-    r'([A-Za-z0-9_-]+)\.recruitee\.com',
+    r"([A-Za-z0-9_-]+)\.recruitee\.com",
     re.IGNORECASE,
 )
 
 # Workable
 _WORKABLE_SLUG_RE = re.compile(
-    r'(?:apply\.workable\.com|careers\.workable\.com)/([A-Za-z0-9_-]+)',
+    r"(?:apply\.workable\.com|careers\.workable\.com)/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 _WORKABLE_JS_RE = re.compile(
@@ -137,13 +137,13 @@ _WORKABLE_JS_RE = re.compile(
 
 # Pinpoint
 _PINPOINT_RE = re.compile(
-    r'([A-Za-z0-9_-]+)\.pinpointhq\.com',
+    r"([A-Za-z0-9_-]+)\.pinpointhq\.com",
     re.IGNORECASE,
 )
 
 # Comeet
 _COMEET_RE = re.compile(
-    r'www\.comeet\.com/jobs/([A-Za-z0-9_-]+)',
+    r"www\.comeet\.com/jobs/([A-Za-z0-9_-]+)",
     re.IGNORECASE,
 )
 
@@ -166,23 +166,71 @@ _GENERIC_API_RE = re.compile(
 
 _PROBES: List[Dict[str, Any]] = [
     # Greenhouse
-    {"path": "/embed/jobs.json",              "ats_type": "greenhouse",     "check": lambda d: isinstance(d, dict) and "jobs" in d},
-    {"path": "/careers/jobs.json",            "ats_type": "greenhouse",     "check": lambda d: isinstance(d, dict) and "jobs" in d},
+    {
+        "path": "/embed/jobs.json",
+        "ats_type": "greenhouse",
+        "check": lambda d: isinstance(d, dict) and "jobs" in d,
+    },
+    {
+        "path": "/careers/jobs.json",
+        "ats_type": "greenhouse",
+        "check": lambda d: isinstance(d, dict) and "jobs" in d,
+    },
     # Lever
-    {"path": "/postings?format=json",         "ats_type": "lever",          "check": lambda d: isinstance(d, list)},
-    {"path": "/jobs?format=json",             "ats_type": "lever",          "check": lambda d: isinstance(d, list)},
+    {
+        "path": "/postings?format=json",
+        "ats_type": "lever",
+        "check": lambda d: isinstance(d, list),
+    },
+    {
+        "path": "/jobs?format=json",
+        "ats_type": "lever",
+        "check": lambda d: isinstance(d, list),
+    },
     # Ashby
-    {"path": "/api/getJobPostings",           "ats_type": "ashby",          "check": lambda d: isinstance(d, dict) and "jobPostings" in d},
+    {
+        "path": "/api/getJobPostings",
+        "ats_type": "ashby",
+        "check": lambda d: isinstance(d, dict) and "jobPostings" in d,
+    },
     # SmartRecruiters
-    {"path": "/v1/companies/-/postings?limit=100", "ats_type": "smartrecruiters", "check": lambda d: isinstance(d, dict) and "content" in d},
-    # Workable  
-    {"path": "/spi/v3/jobs",                  "ats_type": "workable",       "check": lambda d: isinstance(d, dict) and "jobs" in d},
+    {
+        "path": "/v1/companies/-/postings?limit=100",
+        "ats_type": "smartrecruiters",
+        "check": lambda d: isinstance(d, dict) and "content" in d,
+    },
+    # Workable
+    {
+        "path": "/spi/v3/jobs",
+        "ats_type": "workable",
+        "check": lambda d: isinstance(d, dict) and "jobs" in d,
+    },
     # Generic paginated jobs API
-    {"path": "/api/jobs",                     "ats_type": "generic_api",    "check": lambda d: isinstance(d, (list, dict))},
-    {"path": "/api/v1/jobs",                  "ats_type": "generic_api",    "check": lambda d: isinstance(d, (list, dict))},
-    {"path": "/api/v2/jobs",                  "ats_type": "generic_api",    "check": lambda d: isinstance(d, (list, dict))},
-    {"path": "/careers/api/jobs",             "ats_type": "generic_api",    "check": lambda d: isinstance(d, (list, dict))},
-    {"path": "/jobs.json",                    "ats_type": "generic_api",    "check": lambda d: isinstance(d, (list, dict))},
+    {
+        "path": "/api/jobs",
+        "ats_type": "generic_api",
+        "check": lambda d: isinstance(d, (list, dict)),
+    },
+    {
+        "path": "/api/v1/jobs",
+        "ats_type": "generic_api",
+        "check": lambda d: isinstance(d, (list, dict)),
+    },
+    {
+        "path": "/api/v2/jobs",
+        "ats_type": "generic_api",
+        "check": lambda d: isinstance(d, (list, dict)),
+    },
+    {
+        "path": "/careers/api/jobs",
+        "ats_type": "generic_api",
+        "check": lambda d: isinstance(d, (list, dict)),
+    },
+    {
+        "path": "/jobs.json",
+        "ats_type": "generic_api",
+        "check": lambda d: isinstance(d, (list, dict)),
+    },
 ]
 
 
@@ -207,14 +255,16 @@ class APIDiscoveryEngine:
     ) -> None:
         if session is None:
             session = requests.Session()
-            session.headers.update({
-                "User-Agent": (
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-                ),
-                "Accept": "application/json, text/html, */*",
-                "Accept-Language": "en-US,en;q=0.9",
-            })
+            session.headers.update(
+                {
+                    "User-Agent": (
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                    ),
+                    "Accept": "application/json, text/html, */*",
+                    "Accept-Language": "en-US,en;q=0.9",
+                }
+            )
         self._session = session
         self._timeout = timeout
 
@@ -234,7 +284,12 @@ class APIDiscoveryEngine:
         # ---- Step 1: URL / header-based fingerprinting ----
         found = self._fingerprint_url(url)
         if found:
-            logger.info("[discovery:url-fingerprint] %s → %s (%s)", url, found.ats_type, found.api_url)
+            logger.info(
+                "[discovery:url-fingerprint] %s → %s (%s)",
+                url,
+                found.ats_type,
+                found.api_url,
+            )
             return found
 
         # ---- Step 2: Fetch the page for content analysis ----
@@ -252,19 +307,28 @@ class APIDiscoveryEngine:
         # ---- Step 3: Scan inline HTML/script for token patterns ----
         found = self._scan_content(url, html)
         if found:
-            logger.info("[discovery:content-scan] %s → %s (%s)", url, found.ats_type, found.api_url)
+            logger.info(
+                "[discovery:content-scan] %s → %s (%s)",
+                url,
+                found.ats_type,
+                found.api_url,
+            )
             return found
 
         # ---- Step 4: Scan referenced JS files ----
         found = self._scan_js_files(url, html)
         if found:
-            logger.info("[discovery:js-scan] %s → %s (%s)", url, found.ats_type, found.api_url)
+            logger.info(
+                "[discovery:js-scan] %s → %s (%s)", url, found.ats_type, found.api_url
+            )
             return found
 
         # ---- Step 5: Probe well-known paths on same origin ----
         found = self._probe_common_paths(url)
         if found:
-            logger.info("[discovery:probe] %s → %s (%s)", url, found.ats_type, found.api_url)
+            logger.info(
+                "[discovery:probe] %s → %s (%s)", url, found.ats_type, found.api_url
+            )
             return found
 
         logger.warning("API discovery exhausted for %s — no endpoint found", url)
@@ -278,32 +342,36 @@ class APIDiscoveryEngine:
         """Identify ATS purely from URL, construct canonical API URL."""
 
         # Greenhouse —  boards.greenhouse.io/<token>
-        m = re.search(r'boards\.greenhouse\.io/([A-Za-z0-9_-]+)', url, re.IGNORECASE)
+        m = re.search(r"boards\.greenhouse\.io/([A-Za-z0-9_-]+)", url, re.IGNORECASE)
         if m:
             token = m.group(1)
-            api = f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+            api = (
+                f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+            )
             return DiscoveredAPI("greenhouse", api, token, "url-fingerprint", {})
 
         # Greenhouse — /embed/job_board?for=<token>
-        m = re.search(r'for=([A-Za-z0-9_-]+)', url, re.IGNORECASE)
+        m = re.search(r"for=([A-Za-z0-9_-]+)", url, re.IGNORECASE)
         if m and "greenhouse" in url.lower():
             token = m.group(1)
-            api = f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+            api = (
+                f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+            )
             return DiscoveredAPI("greenhouse", api, token, "url-fingerprint", {})
 
         # Lever — jobs.lever.co/<slug>
         m = _LEVER_SLUG_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://api.lever.co/v0/postings/{slug}?mode=json"
+            api = f"https://api.lever.co/v0/postings/{slug}?mode=json"
             return DiscoveredAPI("lever", api, slug, "url-fingerprint", {})
 
         # Workday — <tenant>.myworkdayjobs.com/<path>/<site>
         m = _WORKDAY_PATH_RE.search(url)
         if m:
-            tenant  = _WORKDAY_TENANT_RE.search(url)
+            tenant = _WORKDAY_TENANT_RE.search(url)
             tenant_id = tenant.group(1) if tenant else ""
-            site_id  = m.group(2)
+            site_id = m.group(2)
             api = (
                 f"https://{tenant_id}.myworkdayjobs.com/wday/cxs/{tenant_id}"
                 f"/{site_id}/jobs"
@@ -314,77 +382,77 @@ class APIDiscoveryEngine:
         m = _ASHBY_SLUG_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"
+            api = f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"
             return DiscoveredAPI("ashby", api, slug, "url-fingerprint", {})
 
         # BambooHR — <company>.bamboohr.com
         m = _BAMBOO_SLUG_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://{slug}.bamboohr.com/careers/list"
+            api = f"https://{slug}.bamboohr.com/careers/list"
             return DiscoveredAPI("bamboohr", api, slug, "url-fingerprint", {})
 
         # SmartRecruiters — careers.smartrecruiters.com/<slug>
         m = _SMART_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100"
+            api = f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100"
             return DiscoveredAPI("smartrecruiters", api, slug, "url-fingerprint", {})
 
         # Workable — apply.workable.com/<slug>
         m = _WORKABLE_SLUG_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://apply.workable.com/api/v3/accounts/{slug}/jobs"
+            api = f"https://apply.workable.com/api/v3/accounts/{slug}/jobs"
             return DiscoveredAPI("workable", api, slug, "url-fingerprint", {})
 
         # Recruitee — <slug>.recruitee.com
         m = _RECRUITEE_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://{slug}.recruitee.com/api/offers/"
+            api = f"https://{slug}.recruitee.com/api/offers/"
             return DiscoveredAPI("recruitee", api, slug, "url-fingerprint", {})
 
         # Breezy HR — <slug>.breezy.hr
         m = _BREEZY_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://{slug}.breezy.hr/json"
+            api = f"https://{slug}.breezy.hr/json"
             return DiscoveredAPI("breezy", api, slug, "url-fingerprint", {})
 
         # Jobvite — jobs.jobvite.com/<slug>
         m = _JOBVITE_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://api.jobvite.com/api/v2/job?companyId={slug}&api={slug}"
+            api = f"https://api.jobvite.com/api/v2/job?companyId={slug}&api={slug}"
             return DiscoveredAPI("jobvite", api, slug, "url-fingerprint", {})
 
         # JazzHR — <slug>.applytojob.com
         m = _JAZZHR_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://{slug}.applytojob.com/apply/jobs/json"
+            api = f"https://{slug}.applytojob.com/apply/jobs/json"
             return DiscoveredAPI("jazzhr", api, slug, "url-fingerprint", {})
 
         # Pinpoint — <slug>.pinpointhq.com
         m = _PINPOINT_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://{slug}.pinpointhq.com/api/v1/jobs.json"
+            api = f"https://{slug}.pinpointhq.com/api/v1/jobs.json"
             return DiscoveredAPI("pinpoint", api, slug, "url-fingerprint", {})
 
         # Comeet — www.comeet.com/jobs/<slug>
         m = _COMEET_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://www.comeet.com/jobs/{slug}/api/positions"
+            api = f"https://www.comeet.com/jobs/{slug}/api/positions"
             return DiscoveredAPI("comeet", api, slug, "url-fingerprint", {})
 
         # Rippling — app.rippling.com/jobs/<slug>
         m = _RIPPLING_RE.search(url)
         if m:
             slug = m.group(1)
-            api  = f"https://app.rippling.com/api/v1/job_postings/public/?company_name={slug}"
+            api = f"https://app.rippling.com/api/v1/job_postings/public/?company_name={slug}"
             return DiscoveredAPI("rippling", api, slug, "url-fingerprint", {})
 
         return None
@@ -410,7 +478,7 @@ class APIDiscoveryEngine:
             m = _LEVER_SLUG_RE.search(final_url)
             if m:
                 slug = m.group(1)
-                api  = f"https://api.lever.co/v0/postings/{slug}?mode=json"
+                api = f"https://api.lever.co/v0/postings/{slug}?mode=json"
                 return DiscoveredAPI("lever", api, slug, "header", {})
 
         except Exception as exc:
@@ -429,21 +497,23 @@ class APIDiscoveryEngine:
         m = _GH_TOKEN_RE.search(html)
         if m:
             token = m.group(1)
-            api = f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+            api = (
+                f"https://boards-api.greenhouse.io/v1/boards/{token}/jobs?content=true"
+            )
             return DiscoveredAPI("greenhouse", api, token, "content-scan", {})
 
         # Lever slug referenced in page body
         m = _LEVER_SLUG_RE.search(html)
         if m:
             slug = m.group(1)
-            api  = f"https://api.lever.co/v0/postings/{slug}?mode=json"
+            api = f"https://api.lever.co/v0/postings/{slug}?mode=json"
             return DiscoveredAPI("lever", api, slug, "content-scan", {})
 
         # Ashby slug
         m = _ASHBY_SLUG_RE.search(html)
         if m:
             slug = m.group(1)
-            api  = f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"
+            api = f"https://api.ashbyhq.com/posting-api/job-board/{slug}?includeCompensation=true"
             return DiscoveredAPI("ashby", api, slug, "content-scan", {})
 
         # Workday tenant
@@ -463,21 +533,21 @@ class APIDiscoveryEngine:
         m = _WORKABLE_JS_RE.search(html)
         if m:
             slug = m.group(1)
-            api  = f"https://apply.workable.com/api/v3/accounts/{slug}/jobs"
+            api = f"https://apply.workable.com/api/v3/accounts/{slug}/jobs"
             return DiscoveredAPI("workable", api, slug, "content-scan", {})
 
         # SmartRecruiters
         m = _SMART_RE.search(html)
         if m:
             slug = m.group(1)
-            api  = f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100"
+            api = f"https://api.smartrecruiters.com/v1/companies/{slug}/postings?limit=100"
             return DiscoveredAPI("smartrecruiters", api, slug, "content-scan", {})
 
         # Recruitee
         m = _RECRUITEE_RE.search(html)
         if m:
             slug = m.group(1)
-            api  = f"https://{slug}.recruitee.com/api/offers/"
+            api = f"https://{slug}.recruitee.com/api/offers/"
             return DiscoveredAPI("recruitee", api, slug, "content-scan", {})
 
         # Generic apiUrl embedded in JSON blob
@@ -498,10 +568,18 @@ class APIDiscoveryEngine:
         run the same regex catalogue against the JS source.
         Limits to the first 5 app/vendor JS files to stay fast.
         """
-        script_src_re = re.compile(r'<script[^>]+src=["\']([^"\']+\.js[^"\']*)["\']', re.IGNORECASE)
+        script_src_re = re.compile(
+            r'<script[^>]+src=["\']([^"\']+\.js[^"\']*)["\']', re.IGNORECASE
+        )
         srcs = script_src_re.findall(html)
         # Prioritise files likely to contain config (app.js, main.js, config.js etc.)
-        priority = [s for s in srcs if any(kw in s for kw in ("app", "main", "config", "careers", "jobs", "embed"))]
+        priority = [
+            s
+            for s in srcs
+            if any(
+                kw in s for kw in ("app", "main", "config", "careers", "jobs", "embed")
+            )
+        ]
         candidates = (priority + [s for s in srcs if s not in priority])[:6]
 
         for src in candidates:
@@ -511,7 +589,9 @@ class APIDiscoveryEngine:
                 continue
             found = self._scan_content(url, js_text)  # reuse same regexes
             if found:
-                return DiscoveredAPI(found.ats_type, found.api_url, found.token, "js-scan", found.extra)
+                return DiscoveredAPI(
+                    found.ats_type, found.api_url, found.token, "js-scan", found.extra
+                )
 
         return None
 

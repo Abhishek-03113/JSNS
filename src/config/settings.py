@@ -136,8 +136,12 @@ def load_settings(config_path: str = "config.yaml") -> Settings:
         mongodb_uri=mongodb_uri,
         database_name=db_raw.get("database_name", "career_scraper"),
         jobs_collection=db_raw.get("collections", {}).get("jobs", "jobs"),
-        companies_collection=db_raw.get("collections", {}).get("companies", "companies"),
-        history_collection=db_raw.get("collections", {}).get("history", "scrape_history"),
+        companies_collection=db_raw.get("collections", {}).get(
+            "companies", "companies"
+        ),
+        history_collection=db_raw.get("collections", {}).get(
+            "history", "scrape_history"
+        ),
     )
 
     # --- Scraper ---
@@ -157,7 +161,8 @@ def load_settings(config_path: str = "config.yaml") -> Settings:
     llm_raw = raw.get("llm", {})
     llm = LLMSettings(
         provider=llm_raw.get("provider", "anthropic"),
-        api_key=os.environ.get("LLM_API_KEY") or _resolve_env(llm_raw.get("api_key", "")),
+        api_key=os.environ.get("LLM_API_KEY")
+        or _resolve_env(llm_raw.get("api_key", "")),
         model=llm_raw.get("model", "claude-sonnet-4-20250514"),
         temperature=float(llm_raw.get("temperature", 0.3)),
         max_tokens=int(llm_raw.get("max_tokens", 2000)),
@@ -168,8 +173,10 @@ def load_settings(config_path: str = "config.yaml") -> Settings:
     email = EmailSettings(
         smtp_server=em_raw.get("smtp_server", "smtp.gmail.com"),
         smtp_port=int(em_raw.get("smtp_port", 587)),
-        sender_email=os.environ.get("SENDER_EMAIL") or _resolve_env(em_raw.get("sender_email", "")),
-        sender_password=os.environ.get("SENDER_PASSWORD") or _resolve_env(em_raw.get("sender_password", "")),
+        sender_email=os.environ.get("SENDER_EMAIL")
+        or _resolve_env(em_raw.get("sender_email", "")),
+        sender_password=os.environ.get("SENDER_PASSWORD")
+        or _resolve_env(em_raw.get("sender_password", "")),
         recipient_emails=_resolve_list(em_raw.get("recipient_emails", [])),
         subject_prefix=em_raw.get("subject_prefix", "[Job Alert]"),
     )
@@ -178,7 +185,9 @@ def load_settings(config_path: str = "config.yaml") -> Settings:
     log_raw = raw.get("logging", {})
     logging_settings = LoggingSettings(
         level=log_raw.get("level", "INFO"),
-        format=log_raw.get("format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"),
+        format=log_raw.get(
+            "format", "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        ),
         file=log_raw.get("file", "logs/scraper.log"),
     )
 

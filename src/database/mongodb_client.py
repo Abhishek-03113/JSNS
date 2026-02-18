@@ -77,12 +77,16 @@ class MongoDBClient:
     def _create_indexes(self) -> None:
         """Create compound indexes for efficient queries."""
         jobs_col = self._db[self._col_jobs]
-        jobs_col.create_index([("company", pymongo.ASCENDING), ("is_new", pymongo.DESCENDING)])
+        jobs_col.create_index(
+            [("company", pymongo.ASCENDING), ("is_new", pymongo.DESCENDING)]
+        )
         jobs_col.create_index([("scraped_date", pymongo.DESCENDING)])
         jobs_col.create_index([("_id", pymongo.ASCENDING)], unique=True)
 
         companies_col = self._db[self._col_companies]
-        companies_col.create_index([("career_page_url", pymongo.ASCENDING)], unique=True)
+        companies_col.create_index(
+            [("career_page_url", pymongo.ASCENDING)], unique=True
+        )
 
     # ------------------------------------------------------------------
     # Job operations
@@ -115,7 +119,12 @@ class MongoDBClient:
             {"_id": doc["_id"]}, doc, upsert=True
         )
         is_new = result.upserted_id is not None
-        logger.debug("%s job: %s - %s", "Inserted" if is_new else "Updated", job.company, job.title)
+        logger.debug(
+            "%s job: %s - %s",
+            "Inserted" if is_new else "Updated",
+            job.company,
+            job.title,
+        )
         return is_new
 
     def get_job_by_id(self, job_id: str) -> Optional[Job]:
@@ -141,7 +150,11 @@ class MongoDBClient:
         query: dict = {"is_new": True}
         if since:
             query["scraped_date"] = {"$gte": since}
-        cursor = self._db[self._col_jobs].find(query).sort("scraped_date", pymongo.DESCENDING)
+        cursor = (
+            self._db[self._col_jobs]
+            .find(query)
+            .sort("scraped_date", pymongo.DESCENDING)
+        )
         return [Job.from_mongo(d) for d in cursor]
 
     def mark_jobs_as_seen(self, job_ids: List[str]) -> int:

@@ -36,6 +36,6 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app
 
 HEALTHCHECK --interval=60s --timeout=10s --retries=3 \
-  CMD python -c "from src.config.settings import load_settings; print('ok')"
+    CMD python -c "from src.config.settings import load_settings; print('ok')"
 
 ENTRYPOINT ["python", "src/main.py"]

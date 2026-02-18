@@ -73,10 +73,7 @@ class EmailService:
         if analyses:
             analysis_map = {a.job_id: a for a in analyses}
 
-        items = [
-            {"job": job, "analysis": analysis_map.get(job.id)}
-            for job in new_jobs
-        ]
+        items = [{"job": job, "analysis": analysis_map.get(job.id)} for job in new_jobs]
 
         context = {
             "subject": f"{self._settings.subject_prefix} {len(new_jobs)} New Job(s) Found",
@@ -98,10 +95,14 @@ class EmailService:
             True if connection succeeds, False otherwise.
         """
         try:
-            with smtplib.SMTP(self._settings.smtp_server, self._settings.smtp_port) as server:
+            with smtplib.SMTP(
+                self._settings.smtp_server, self._settings.smtp_port
+            ) as server:
                 server.ehlo()
                 server.starttls()
-                server.login(self._settings.sender_email, self._settings.sender_password)
+                server.login(
+                    self._settings.sender_email, self._settings.sender_password
+                )
             logger.info("SMTP connection test successful.")
             return True
         except Exception as exc:
@@ -147,9 +148,11 @@ class EmailService:
         msg["To"] = recipient
 
         msg.attach(MIMEText(text_body, "plain", "utf-8"))
-        msg.attach(MIMEText(html_body, "html",  "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
 
-        with smtplib.SMTP(self._settings.smtp_server, self._settings.smtp_port) as server:
+        with smtplib.SMTP(
+            self._settings.smtp_server, self._settings.smtp_port
+        ) as server:
             server.ehlo()
             server.starttls()
             server.login(self._settings.sender_email, self._settings.sender_password)

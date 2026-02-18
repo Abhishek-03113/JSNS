@@ -21,7 +21,9 @@ from pydantic import BaseModel, Field, HttpUrl
 class Job(BaseModel):
     """Represents a single job listing."""
 
-    id: str = Field(..., description="Stable 16-char hex ID derived from company+title+url")
+    id: str = Field(
+        ..., description="Stable 16-char hex ID derived from company+title+url"
+    )
     company: str
     title: str
     location: str = ""
@@ -32,7 +34,7 @@ class Job(BaseModel):
     posted_date: Optional[datetime] = None
     scraped_date: datetime = Field(default_factory=datetime.utcnow)
     is_new: bool = True
-    ats_type: str = "unknown"   # greenhouse | lever | workday | universal | unknown
+    ats_type: str = "unknown"  # greenhouse | lever | workday | universal | unknown
 
     model_config = {"populate_by_name": True}
 

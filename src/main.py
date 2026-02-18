@@ -58,6 +58,7 @@ def extract_resume_text(resume_path: str) -> str:
     # ---- Try pylatexenc (clean conversion) ----
     try:
         from pylatexenc.latex2text import LatexNodes2Text  # type: ignore
+
         with open(resume_path, "r", encoding="utf-8") as fh:
             latex = fh.read()
         return LatexNodes2Text().latex_to_text(latex)
@@ -67,6 +68,7 @@ def extract_resume_text(resume_path: str) -> str:
     # ---- Fallback: strip LaTeX commands naively ----
     logger.debug("pylatexenc not installed — using naive LaTeX stripper")
     import re
+
     with open(resume_path, "r", encoding="utf-8") as fh:
         text = fh.read()
     text = re.sub(r"\\[a-zA-Z]+\*?(\{[^}]*\}|\[[^\]]*\])*", " ", text)
@@ -84,13 +86,23 @@ def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="ATS-Buddy — automated job scraper with LLM resume matching"
     )
-    parser.add_argument("--config",      default="config.yaml",         help="Path to config.yaml")
-    parser.add_argument("--resume",      default="data/resume.tex",     help="Path to resume .tex file")
-    parser.add_argument("--urls",        default="data/career_pages.txt", help="Path to URL list file")
-    parser.add_argument("--dry-run",     action="store_true",           help="Skip email, print results")
-    parser.add_argument("--skip-llm",   action="store_true",           help="Skip LLM resume analysis")
-    parser.add_argument("--test-email", action="store_true",            help="Send test email, skip scraping")
-    parser.add_argument("--verbose",    action="store_true",            help="Enable DEBUG logging")
+    parser.add_argument("--config", default="config.yaml", help="Path to config.yaml")
+    parser.add_argument(
+        "--resume", default="data/resume.tex", help="Path to resume .tex file"
+    )
+    parser.add_argument(
+        "--urls", default="data/career_pages.txt", help="Path to URL list file"
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Skip email, print results"
+    )
+    parser.add_argument(
+        "--skip-llm", action="store_true", help="Skip LLM resume analysis"
+    )
+    parser.add_argument(
+        "--test-email", action="store_true", help="Send test email, skip scraping"
+    )
+    parser.add_argument("--verbose", action="store_true", help="Enable DEBUG logging")
     return parser.parse_args()
 
 

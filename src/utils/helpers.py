@@ -53,7 +53,7 @@ def truncate_text(text: str, max_length: int = 500) -> str:
     text = text.strip()
     if len(text) <= max_length:
         return text
-    return text[:max_length - 1] + "…"
+    return text[: max_length - 1] + "…"
 
 
 def clean_whitespace(text: str) -> str:

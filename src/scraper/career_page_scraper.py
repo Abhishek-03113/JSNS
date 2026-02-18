@@ -40,13 +40,13 @@ logger = logging.getLogger(__name__)
 
 def _empty_report() -> Dict[str, Any]:
     return {
-        "scrape_id":        "",
-        "urls_attempted":   0,
-        "urls_succeeded":   0,
-        "jobs_found":       0,
-        "new_jobs":         0,
-        "errors":           [],
-        "parser_usage":     {},   # url → "greenhouse" | "universal" | …
+        "scrape_id": "",
+        "urls_attempted": 0,
+        "urls_succeeded": 0,
+        "jobs_found": 0,
+        "new_jobs": 0,
+        "errors": [],
+        "parser_usage": {},  # url → "greenhouse" | "universal" | …
         "duration_seconds": 0.0,
     }
 
@@ -107,7 +107,7 @@ class CareerPageScraper:
         start = time.time()
 
         workers = min(self._settings.concurrent_requests, len(urls))
-        results: List[Tuple[str, List[Dict[str, Any]], str]] = []   # (url, jobs, parser)
+        results: List[Tuple[str, List[Dict[str, Any]], str]] = []  # (url, jobs, parser)
 
         with ThreadPoolExecutor(max_workers=workers) as pool:
             future_map = {pool.submit(self._scrape_single, url): url for url in urls}
@@ -176,9 +176,18 @@ class CareerPageScraper:
                     if jobs:
                         logger.info("[%s] %s → %d jobs", strategy.name, url, len(jobs))
                         return jobs, strategy.name
-                    logger.warning("[%s] no jobs from %s — falling back to discovery", strategy.name, url)
+                    logger.warning(
+                        "[%s] no jobs from %s — falling back to discovery",
+                        strategy.name,
+                        url,
+                    )
                 except Exception as exc:
-                    logger.warning("[%s] error for %s: %s — falling back to discovery", strategy.name, url, exc)
+                    logger.warning(
+                        "[%s] error for %s: %s — falling back to discovery",
+                        strategy.name,
+                        url,
+                        exc,
+                    )
                 finally:
                     _helper.close()
 
@@ -219,12 +228,14 @@ class CareerPageScraper:
                 new_count += 1
 
         # Update company record
-        self._db.upsert_company(Company(
-            name=company,
-            career_page_url=source_url,
-            last_scraped=datetime.utcnow(),
-            total_jobs=len(raw_jobs),
-        ))
+        self._db.upsert_company(
+            Company(
+                name=company,
+                career_page_url=source_url,
+                last_scraped=datetime.utcnow(),
+                total_jobs=len(raw_jobs),
+            )
+        )
 
         return new_count
 
@@ -240,4 +251,6 @@ class CareerPageScraper:
             report["duration_seconds"],
         )
         if report["errors"]:
-            logger.warning("%d URL(s) failed: %s", len(report["errors"]), report["errors"])
+            logger.warning(
+                "%d URL(s) failed: %s", len(report["errors"]), report["errors"]
+            )
