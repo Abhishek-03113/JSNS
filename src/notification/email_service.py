@@ -118,6 +118,12 @@ class EmailService:
         return tmpl.render(**context)
 
     def _send_to_all(self, subject: str, html_body: str, text_body: str) -> bool:
+        # If no recipients are configured, fail early and log an error so
+        # callers (like send_job_alert) can react accordingly.
+        if not self._settings.recipient_emails:
+            logger.error("No recipient emails configured; aborting email send.")
+            return False
+
         success = True
         for recipient in self._settings.recipient_emails:
             if not recipient:

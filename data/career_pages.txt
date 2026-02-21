@@ -12,3 +12,6 @@
 
 # --- Custom / Generic ---
 # https://careers.yourcompany.com/jobs
+
+# Microsoft careers (added for test)
+https://careers.microsoft.com/v2/global/en/home.html

@@ -213,10 +213,16 @@ def main() -> int:
                 analyses=analyses if analyses else None,
                 urls_scraped=report["urls_succeeded"],
             )
-            if sent:
+            recipients = getattr(settings.email, "recipient_emails", [])
+            if sent and recipients:
                 logger.info("Job alert email sent successfully.")
-                # Mark jobs as seen after successful notification
+                # Mark jobs as seen after successful notification and when
+                # recipients are configured so jobs aren't hidden silently.
                 db.mark_jobs_as_seen([j.id for j in new_jobs])
+            elif not recipients:
+                logger.error(
+                    "No recipient emails configured; not marking jobs as seen."
+                )
             else:
                 logger.warning("Email sending failed — jobs remain marked as new.")
 
