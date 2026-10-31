@@ -133,6 +133,17 @@ section { display: flex; flex-direction: column; gap: 20px; }
 .note span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .empty { background: var(--card); border-radius: var(--radius-card); padding: 28px 14px; text-align: center; color: var(--ink-body); font-size: 13px; }
 
+/* The two links a script returns */
+.linkrows { display: flex; flex-direction: column; gap: 6px; }
+.linkrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--paper); border-radius: var(--radius-button); padding: 10px 12px; box-shadow: 0 0 0 1px var(--line); }
+@media (max-width: 560px) { .linkrow { grid-template-columns: minmax(0, 1fr); } }
+.linkrow-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.linkrow-label { font: 500 13px/20px var(--sans); color: var(--ink); }
+.linkrow-url { font: 500 12px/19px var(--mono); color: var(--blue-ink); text-decoration: underline; text-decoration-color: #c5d5f7; text-underline-offset: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linkrow-url:hover { text-decoration-color: var(--blue-ink); }
+.linkrow-hint { font: 400 12px/19px var(--sans); color: var(--ink-body); }
+.linkrow-actions { display: flex; gap: 6px; }
+
 /* Questions and answers: the artifact's review cards, read-only, scrolling inside the form card */
 .qbox { display: flex; flex-direction: column; background: var(--ground); border: 1px solid var(--line); border-radius: var(--radius-image); overflow: hidden; }
 .qbox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--paper); font: 400 12px/19px var(--sans); color: var(--ink-body); font-variant-numeric: tabular-nums; }

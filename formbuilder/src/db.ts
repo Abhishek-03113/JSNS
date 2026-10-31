@@ -34,6 +34,7 @@ export interface FormRecord {
   form_id: string | null;
   edit_url: string | null;
   published_url: string | null;
+  short_url: string | null;
   script_project_id: string | null;
   response_count: number | null;
   accepting_responses: boolean | null;
@@ -213,10 +214,10 @@ export class Store {
     return row as FormRecord;
   }
 
-  async markFormCreated(id: string, r: { form_id: string; edit_url: string; published_url: string }): Promise<FormRecord> {
+  async markFormCreated(id: string, r: { form_id: string; edit_url: string; published_url: string; short_url: string | null }): Promise<FormRecord> {
     const [row] = await this.sql`
       UPDATE forms SET status = 'created', error = NULL, form_id = ${r.form_id}, edit_url = ${r.edit_url},
-        published_url = ${r.published_url}, response_count = 0, accepting_responses = true,
+        published_url = ${r.published_url}, short_url = ${r.short_url}, response_count = 0, accepting_responses = true,
         stats_updated_at = now(), updated_at = now()
       WHERE id = ${id} RETURNING *`;
     return row as FormRecord;

@@ -51,6 +51,9 @@ export function formJson(f: FormRecord, full = false) {
     formId: f.form_id,
     editUrl: f.edit_url,
     publishedUrl: f.published_url,
+    /** The link to give students: the forms.gle short link when there is one. */
+    studentUrl: f.short_url || f.published_url,
+    shortUrl: f.short_url,
     responsesUrl: f.form_id ? responsesUrl(f.form_id) : null,
     responseCount: f.response_count,
     acceptingResponses: f.accepting_responses,
@@ -66,6 +69,11 @@ export function formJson(f: FormRecord, full = false) {
 const userJson = (u: User) => ({ id: u.id, email: u.email, name: u.name, picture: u.picture });
 
 const tokenJson = (t: ApiToken) => ({ id: t.id, name: t.name, prefix: t.prefix, createdAt: iso(t.created_at), lastUsedAt: iso(t.last_used_at) });
+
+/** Only keep https links from the script result. */
+function safeUrl(u: unknown): string | null {
+  return typeof u === "string" && /^https:\/\/[^\s]+$/.test(u) ? u : null;
+}
 
 // Request helpers
 
@@ -104,7 +112,7 @@ async function runCreate(ctx: Ctx, user: User, rec: FormRecord): Promise<FormRec
   try {
     const token = await ctx.tokens.accessToken(user);
     const r = await ctx.script.createForm(token, rec.payload);
-    return await ctx.store.markFormCreated(rec.id, { form_id: r.formId, edit_url: r.editUrl, published_url: r.publishedUrl });
+    return await ctx.store.markFormCreated(rec.id, { form_id: r.formId, edit_url: r.editUrl, published_url: r.publishedUrl, short_url: safeUrl(r.shortUrl) });
   } catch (e) {
     const failed = await ctx.store.markFormFailed(rec.id, e instanceof AppError ? e.message : "Unexpected error while running the script.");
     if (e instanceof AppError) {

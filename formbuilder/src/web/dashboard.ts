@@ -12,6 +12,7 @@ interface FormItem {
   formId: string | null;
   editUrl: string | null;
   publishedUrl: string | null;
+  studentUrl: string | null;
   responsesUrl: string | null;
   responseCount: number | null;
   acceptingResponses: boolean | null;
@@ -122,14 +123,49 @@ function renderSummary() {
   for (const k of ["all", "created", "failed"] as const) $("tab-" + k).setAttribute("aria-selected", String(state.filter === k));
 }
 
-function linkButton(label: string, href: string | null, primary = false) {
-  const a = el("a", "btn " + (primary ? "btn-primary" : "btn-paper"), label);
-  if (href) {
-    a.href = href;
+const isHttps = (u: string | null): u is string => !!u && /^https:\/\//.test(u);
+
+async function share(title: string, label: string, url: string) {
+  const data = { title, text: label + " for " + title, url };
+  if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
+    try {
+      await navigator.share(data);
+      return;
+    } catch (e) {
+      if ((e as DOMException).name === "AbortError") return;
+    }
+  }
+  copy(url, label + " copied. Paste it anywhere to share.");
+}
+
+/** One of the two links the script returns: the URL itself is clickable, with copy and share. */
+function linkRow(f: FormItem, label: string, hint: string, url: string | null): HTMLElement {
+  const row = el("div", "linkrow");
+  const text = el("div", "linkrow-text");
+  text.append(el("span", "linkrow-label", label));
+  if (isHttps(url)) {
+    const a = el("a", "linkrow-url", url.replace(/^https:\/\//, ""));
+    a.href = url;
     a.target = "_blank";
     a.rel = "noopener";
-  }
-  return a;
+    a.title = url;
+    text.append(a);
+  } else text.append(el("span", "linkrow-hint", "Not available"));
+  text.append(el("span", "linkrow-hint", hint));
+  row.append(text);
+  const acts = el("div", "linkrow-actions");
+  const b = (name: string, cls: string, fn: () => void) => {
+    const btn = el("button", "btn " + cls, name);
+    btn.type = "button";
+    btn.disabled = !isHttps(url);
+    btn.setAttribute("aria-label", name + " " + label.toLowerCase());
+    btn.onclick = fn;
+    acts.append(btn);
+  };
+  b("Copy", "btn-grey", () => copy(url!, label + " copied."));
+  b("Share", "btn-primary", () => share(f.title, label, url!));
+  row.append(acts);
+  return row;
 }
 
 function statusChip(f: FormItem) {
@@ -231,8 +267,11 @@ function renderForm(f: FormItem): HTMLElement {
     stat(String(f.questionCount), "Questions");
     stat(f.acceptingResponses === false ? "Closed" : "Open", "Accepting responses");
     card.append(stats);
-    const links = el("div", "links");
-    links.append(linkButton("Edit form", f.editUrl, true), linkButton("Student link", f.publishedUrl), linkButton("Responses", f.responsesUrl));
+    const links = el("div", "linkrows");
+    links.append(
+      linkRow(f, "Edit link", "For you: change questions, settings and see responses.", f.editUrl),
+      linkRow(f, "Student link", "Send this to students to take the quiz.", f.studentUrl || f.publishedUrl),
+    );
     card.append(links);
   } else if (f.status === "failed" && f.error) {
     const n = el("div", "note");

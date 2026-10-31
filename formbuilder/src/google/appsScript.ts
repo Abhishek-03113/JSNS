@@ -7,6 +7,8 @@ export interface CreatedForm {
   title: string;
   editUrl: string;
   publishedUrl: string;
+  /** forms.gle short link for students; empty when Google didn't give one. */
+  shortUrl?: string;
   questionCount: number;
 }
 

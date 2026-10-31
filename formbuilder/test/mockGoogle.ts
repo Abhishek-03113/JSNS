@@ -100,6 +100,7 @@ export function startMockGoogle(opts: MockGoogleOptions = {}): MockGoogle {
                 title: payload.title,
                 editUrl: `https://docs.google.com/forms/d/${id}/edit`,
                 publishedUrl: `https://docs.google.com/forms/d/e/${id}-pub/viewform`,
+                shortUrl: `https://forms.gle/${id}short`,
                 questionCount: payload.items.filter((i) => i.q !== undefined).length,
               },
             },

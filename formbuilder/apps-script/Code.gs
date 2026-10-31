@@ -47,11 +47,17 @@ function createMcqQuiz(payload) {
     if (item.word) mc.setHelpText((payload.wordLabel || 'Underlined word: ') + item.word);
   });
 
+  var publishedUrl = form.getPublishedUrl();
+  var shortUrl = '';
+  try { shortUrl = form.shortenFormUrl(publishedUrl); } catch (e) { /* the long link still works */ }
+
+  // Two links: editUrl for the teacher, publishedUrl (and its forms.gle shortUrl) for students.
   return {
     formId: form.getId(),
     title: form.getTitle(),
     editUrl: form.getEditUrl(),
-    publishedUrl: form.getPublishedUrl(),
+    publishedUrl: publishedUrl,
+    shortUrl: shortUrl,
     questionCount: qNo
   };
 }

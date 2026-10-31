@@ -170,6 +170,8 @@ describe("forms API", () => {
     expect(form.source).toBe("artifact");
     expect(form.editUrl).toBe(`https://docs.google.com/forms/d/${form.formId}/edit`);
     expect(form.publishedUrl).toContain("/viewform");
+    expect(form.shortUrl).toBe(`https://forms.gle/${form.formId}short`);
+    expect(form.studentUrl).toBe(form.shortUrl);
     expect(form.responsesUrl).toBe(`https://docs.google.com/forms/d/${form.formId}/edit#responses`);
 
     // Exactly one Apps Script execution, against the executor, with the artifact's payload.
