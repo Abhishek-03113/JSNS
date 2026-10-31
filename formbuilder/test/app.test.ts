@@ -321,3 +321,162 @@ describe("build", () => {
     expect(current === (await renderAssets())).toBe(true);
   });
 });
+
+describe("claude.ai connector: OAuth + MCP", () => {
+  const REDIRECT = "https://claude.ai/api/mcp/auth_callback";
+  const form = (o: Record<string, string>) => new URLSearchParams(o).toString();
+  const verifier = "v".repeat(20) + "-verifier-" + "x".repeat(30);
+  const challenge = () => new Bun.CryptoHasher("sha256").update(verifier).digest("base64url");
+
+  async function rpc(token: string | undefined, body: unknown) {
+    return app.fetch(
+      new Request(BASE + "/mcp", {
+        method: "POST",
+        headers: { "content-type": "application/json", accept: "application/json, text/event-stream", ...(token ? { authorization: "Bearer " + token } : {}) },
+        body: JSON.stringify(body),
+      }),
+    );
+  }
+
+  /** Runs the flow claude.ai runs: 401 → discovery → register → authorize (sign-in + consent) → token. */
+  async function connect(cookie: string) {
+    const first = await rpc(undefined, { jsonrpc: "2.0", id: 1, method: "initialize", params: {} });
+    expect(first.status).toBe(401);
+    const challengeHeader = first.headers.get("www-authenticate")!;
+    expect(challengeHeader).toContain(`resource_metadata="${BASE}/.well-known/oauth-protected-resource"`);
+
+    const prm = (await (await call("GET", "/.well-known/oauth-protected-resource")).json()) as any;
+    expect(prm.resource).toBe(BASE + "/mcp");
+    const asMeta = (await (await call("GET", "/.well-known/oauth-authorization-server")).json()) as any;
+    expect(asMeta.code_challenge_methods_supported).toEqual(["S256"]);
+
+    const reg = await app.fetch(
+      new Request(asMeta.registration_endpoint, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "https://claude.ai" },
+        body: JSON.stringify({ client_name: "Claude", redirect_uris: [REDIRECT], token_endpoint_auth_method: "none" }),
+      }),
+    );
+    expect(reg.status).toBe(201);
+    const client = (await reg.json()) as any;
+    expect(client.client_secret).toBeUndefined();
+
+    const q = form({ response_type: "code", client_id: client.client_id, redirect_uri: REDIRECT, code_challenge: challenge(), code_challenge_method: "S256", state: "st8", scope: "forms" });
+    // Not signed in: sent to Google sign-in, coming back to the same authorize URL.
+    const anon = await call("GET", "/oauth/authorize?" + q);
+    expect(anon.status).toBe(302);
+    expect(decodeURIComponent(anon.headers.get("location")!)).toBe("/login?return_to=/oauth/authorize?" + q);
+    // Signed in: consent page.
+    const page = await call("GET", "/oauth/authorize?" + q, { cookie });
+    expect(page.status).toBe(200);
+    const html = await page.text();
+    expect(html).toContain("Allow Claude?");
+    expect(page.headers.get("x-frame-options")).toBe("DENY");
+    // Allow.
+    const allow = await app.fetch(
+      new Request(BASE + "/oauth/authorize", {
+        method: "POST",
+        headers: { cookie, origin: BASE, "content-type": "application/x-www-form-urlencoded" },
+        body: q + "&code_challenge_method=S256&decision=allow",
+      }),
+    );
+    expect(allow.status).toBe(303);
+    const back = new URL(allow.headers.get("location")!);
+    expect(back.origin + back.pathname).toBe(REDIRECT);
+    expect(back.searchParams.get("state")).toBe("st8");
+    const code = back.searchParams.get("code")!;
+
+    const tokenReq = (body: Record<string, string>) =>
+      app.fetch(new Request(BASE + "/oauth/token", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded", origin: "https://claude.ai" }, body: form(body) }));
+    const wrongPkce = await tokenReq({ grant_type: "authorization_code", code, client_id: client.client_id, redirect_uri: REDIRECT, code_verifier: "w".repeat(50) });
+    expect(wrongPkce.status).toBe(400);
+    expect(((await wrongPkce.json()) as any).error).toBe("invalid_grant");
+    // The failed attempt burned the code (single use), so authorize again.
+    const allow2 = await app.fetch(
+      new Request(BASE + "/oauth/authorize", { method: "POST", headers: { cookie, origin: BASE, "content-type": "application/x-www-form-urlencoded" }, body: q + "&decision=allow" }),
+    );
+    const code2 = new URL(allow2.headers.get("location")!).searchParams.get("code")!;
+    const tok = await tokenReq({ grant_type: "authorization_code", code: code2, client_id: client.client_id, redirect_uri: REDIRECT, code_verifier: verifier });
+    expect(tok.status).toBe(200);
+    expect(tok.headers.get("access-control-allow-origin")).toBe("*");
+    const t = (await tok.json()) as any;
+    expect(t.token_type).toBe("Bearer");
+    expect(t.access_token).toMatch(/^fbo_/);
+    const replay = await tokenReq({ grant_type: "authorization_code", code: code2, client_id: client.client_id, redirect_uri: REDIRECT, code_verifier: verifier });
+    expect(replay.status).toBe(400);
+    return { client, tokens: t, tokenReq };
+  }
+
+  test("connect, call the tools, refresh, disconnect", async () => {
+    const cookie = await signIn();
+    const { client, tokens, tokenReq } = await connect(cookie);
+
+    const init = (await (await rpc(tokens.access_token, { jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "claude-ai", version: "1" } } })).json()) as any;
+    expect(init.result.protocolVersion).toBe("2025-06-18");
+    expect(init.result.capabilities.tools).toBeDefined();
+    expect((await rpc(tokens.access_token, { jsonrpc: "2.0", method: "notifications/initialized" })).status).toBe(202);
+
+    const list = (await (await rpc(tokens.access_token, { jsonrpc: "2.0", id: 2, method: "tools/list" })).json()) as any;
+    expect(list.result.tools.map((t: any) => t.name)).toEqual(["get_account", "create_google_form", "list_google_forms"]);
+
+    const acct = (await (await rpc(tokens.access_token, { jsonrpc: "2.0", id: 3, method: "tools/call", params: { name: "get_account", arguments: {} } })).json()) as any;
+    expect(acct.result.structuredContent).toEqual({ email: "teacher@example.com", name: "Test Teacher", readyToCreateForms: true, problem: null });
+
+    const before = google.runs.length;
+    const { payload } = artifactPayload();
+    const made = (await (await rpc(tokens.access_token, { jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "create_google_form", arguments: { payload } } })).json()) as any;
+    expect(made.result.isError).toBeUndefined();
+    const f = made.result.structuredContent.form;
+    expect(f.status).toBe("created");
+    expect(f.editUrl).toMatch(/^https:\/\/docs\.google\.com\/forms\/d\/.+\/edit$/);
+    expect(f.studentUrl).toMatch(/^https:\/\/forms\.gle\//);
+    expect(made.result.content[0].text).toContain("Student link: " + f.studentUrl);
+    expect(google.runs.length).toBe(before + 1);
+    expect(JSON.parse(String(google.runs.at(-1)!.parameters[0]))).toEqual(payload);
+
+    const bad = (await (await rpc(tokens.access_token, { jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "create_google_form", arguments: { payload: { title: "", items: [] } } } })).json()) as any;
+    expect(bad.result.isError).toBe(true);
+    expect(bad.result.structuredContent.error.code).toBe("invalid_payload");
+
+    const listed = (await (await rpc(tokens.access_token, { jsonrpc: "2.0", id: 6, method: "tools/call", params: { name: "list_google_forms", arguments: { limit: 5 } } })).json()) as any;
+    expect(listed.result.structuredContent.forms[0].id).toBe(f.id);
+    expect((await (await call("GET", "/api/forms/" + f.id, { cookie })).json() as any).form.source).toBe("claude");
+
+    // Connector tokens can't use the REST API.
+    expect((await call("GET", "/api/forms", { token: tokens.access_token })).status).toBe(403);
+
+    // Refresh rotates; the old refresh token stops working.
+    const r1 = await tokenReq({ grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: client.client_id });
+    expect(r1.status).toBe(200);
+    const t2 = (await r1.json()) as any;
+    expect(t2.refresh_token).not.toBe(tokens.refresh_token);
+    expect((await tokenReq({ grant_type: "refresh_token", refresh_token: tokens.refresh_token, client_id: client.client_id })).status).toBe(400);
+
+    // The dashboard lists the connection and can disconnect it.
+    const conns = (await (await call("GET", "/api/connections", { cookie })).json()) as any;
+    const conn = conns.connections.find((c: any) => c.name === "Claude");
+    expect(conn).toBeDefined();
+    expect((await call("DELETE", "/api/connections/" + conn.id, { cookie })).status).toBe(204);
+    const after = await rpc(t2.access_token, { jsonrpc: "2.0", id: 7, method: "tools/list" });
+    expect(after.status).toBe(401);
+    expect(after.headers.get("www-authenticate")).toContain("resource_metadata=");
+  });
+
+  test("authorize rejects unknown clients, unregistered redirects and plain PKCE; deny goes back with access_denied", async () => {
+    const cookie = await signIn();
+    expect((await call("GET", "/oauth/authorize?client_id=nope&redirect_uri=" + encodeURIComponent(REDIRECT), { cookie })).status).toBe(400);
+    const reg = (await (await app.fetch(new Request(BASE + "/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ client_name: "X", redirect_uris: [REDIRECT] }) }))).json()) as any;
+    const evil = await call("GET", "/oauth/authorize?" + form({ response_type: "code", client_id: reg.client_id, redirect_uri: "https://evil.example/cb", code_challenge: challenge(), code_challenge_method: "S256" }), { cookie });
+    expect(evil.status).toBe(400);
+    expect(evil.headers.get("location")).toBeNull();
+    const plain = await call("GET", "/oauth/authorize?" + form({ response_type: "code", client_id: reg.client_id, redirect_uri: REDIRECT, code_challenge: challenge(), code_challenge_method: "plain" }), { cookie });
+    expect(new URL(plain.headers.get("location")!).searchParams.get("error")).toBe("invalid_request");
+    const q = form({ response_type: "code", client_id: reg.client_id, redirect_uri: REDIRECT, code_challenge: challenge(), code_challenge_method: "S256", state: "s" });
+    const deny = await app.fetch(new Request(BASE + "/oauth/authorize", { method: "POST", headers: { cookie, origin: BASE, "content-type": "application/x-www-form-urlencoded" }, body: q + "&decision=deny" }));
+    expect(new URL(deny.headers.get("location")!).searchParams.get("error")).toBe("access_denied");
+    // Consent posted from another site is blocked.
+    const forged = await app.fetch(new Request(BASE + "/oauth/authorize", { method: "POST", headers: { cookie, origin: "https://evil.example", "content-type": "application/x-www-form-urlencoded" }, body: q + "&decision=allow" }));
+    expect(forged.status).toBe(403);
+    expect((await app.fetch(new Request(BASE + "/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["http://evil.example/cb"] }) }))).status).toBe(400);
+  });
+});

@@ -7,6 +7,8 @@ import { AppError } from "./errors.ts";
 import { AppsScriptClient, scriptEditorUrl, STANDALONE_MANIFEST } from "./google/appsScript.ts";
 import { authorizeUrl, exchangeCode, fetchProfile, missingScopes, revoke, TokenService } from "./google/oauth.ts";
 import { cookie, errorResponse, json, parseCookies, readJson, redirect, Router } from "./http.ts";
+import { handleMcp } from "./mcp.ts";
+import { registerOAuthRoutes, resourceMetadataUrl } from "./oauthServer.ts";
 import { buildScript, questionCount, unansweredCount, validatePayload, type FormPayload } from "./mcq/script.ts";
 
 const SESSION_COOKIE = "fb_session";
@@ -14,10 +16,11 @@ const MAX_SCRIPT = 400_000;
 
 interface Auth {
   user: User;
-  via: "session" | "token";
+  /** session: browser cookie; token: dashboard API token; oauth: connector access token (MCP only). */
+  via: "session" | "token" | "oauth";
 }
 
-interface Ctx {
+export interface Ctx {
   cfg: Config;
   store: Store;
   tokens: TokenService;
@@ -78,6 +81,7 @@ function safeUrl(u: unknown): string | null {
 
 function requireAuth(ctx: Ctx, opts: { sessionOnly?: boolean } = {}): User {
   if (!ctx.auth) throw new AppError(401, "unauthenticated", "Sign in with Google, or send an API token as `Authorization: Bearer fbk_...`.");
+  if (ctx.auth.via === "oauth") throw new AppError(403, "wrong_endpoint", "Connector tokens only work on the MCP endpoint (/mcp).");
   if (opts.sessionOnly && ctx.auth.via !== "session") throw new AppError(403, "session_required", "This action needs a signed-in browser session.");
   return ctx.auth.user;
 }
@@ -91,7 +95,7 @@ function safeReturnTo(v: string | null): string {
  * `payload` is the artifact's MCQ.buildPayload() output. `script` is the artifact's MCQ.buildScript()
  * text, stored for the dashboard; when it is missing the same script is rendered from the payload.
  */
-function readFormBody(body: Record<string, unknown>): { payload: FormPayload; script: string; warnings: string[] } {
+export function readFormBody(body: Record<string, unknown>): { payload: FormPayload; script: string; warnings: string[] } {
   if (body.payload === undefined) throw new AppError(400, "missing_payload", 'Send { "payload": { title, items, ... } } as built by the MCQ Form Builder.');
   const v = validatePayload(body.payload);
   if (!v.ok) throw new AppError(422, "invalid_payload", "The form payload has problems.", { errors: v.errors });
@@ -107,7 +111,7 @@ function readFormBody(body: Record<string, unknown>): { payload: FormPayload; sc
 }
 
 /** Runs the executor's createMcqQuiz as the user and records the result either way. */
-async function runCreate(ctx: Ctx, user: User, rec: FormRecord): Promise<FormRecord> {
+export async function runCreate(ctx: Ctx, user: User, rec: FormRecord): Promise<FormRecord> {
   try {
     const token = await ctx.tokens.accessToken(user);
     const r = await ctx.script.createForm(token, rec.payload);
@@ -318,8 +322,37 @@ function buildRouter() {
     return new Response(null, { status: 204 });
   });
 
+  // Apps connected through OAuth (e.g. the Claude connector), managed from the dashboard
+  r.on("GET", "/api/connections", async (_req, _p, ctx) => {
+    const user = requireAuth(ctx, { sessionOnly: true });
+    const grants = await ctx.store.listGrants(user.id);
+    return json({ connections: grants.map((g) => ({ id: g.id, name: g.client_name, connectedAt: iso(g.created_at), lastUsedAt: iso(g.last_used_at) })) });
+  });
+  r.on("DELETE", "/api/connections/:id", async (_req, p, ctx) => {
+    const user = requireAuth(ctx, { sessionOnly: true });
+    if (!(await ctx.store.deleteGrant(user.id, p.id!))) throw new AppError(404, "not_found", "No connection with that id.");
+    return new Response(null, { status: 204 });
+  });
+
+  // OAuth authorization server + MCP endpoint for claude.ai connectors
+  registerOAuthRoutes(r);
+  r.on("POST", "/mcp", (req, _p, ctx) => {
+    if (!ctx.auth || ctx.auth.via === "session") return mcpChallenge(ctx.cfg);
+    return handleMcp(req, ctx, ctx.auth.user);
+  });
+
   return r;
 }
+
+/** 401 that tells MCP clients where to start OAuth (RFC 9728). */
+function mcpChallenge(cfg: Config, error = "invalid_token") {
+  return json({ error: { code: "unauthenticated", message: "Connect with OAuth to use this MCP server." } }, 401, {
+    "www-authenticate": `Bearer error="${error}", resource_metadata="${resourceMetadataUrl(cfg.baseUrl)}"`,
+  });
+}
+
+/** Endpoints called by OAuth/MCP clients: bearer or client credentials only, never cookies. */
+const isProtocolPath = (path: string) => path === "/mcp" || path.startsWith("/.well-known/") || ["/oauth/token", "/oauth/register", "/oauth/revoke"].includes(path);
 
 export async function createApp(cfg: Config, deps: { store?: Store } = {}): Promise<App> {
   const store = deps.store ?? new Store(cfg.databaseUrl);
@@ -332,6 +365,14 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
 
   function corsHeaders(req: Request, path: string): Record<string, string> {
     const origin = req.headers.get("origin");
+    if (origin && isProtocolPath(path))
+      return {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "GET, POST, OPTIONS",
+        "access-control-allow-headers": "authorization, content-type, mcp-protocol-version, mcp-session-id",
+        "access-control-expose-headers": "www-authenticate, mcp-session-id",
+        "access-control-max-age": "600",
+      };
     if (!origin || !path.startsWith("/api/") || origin === appOrigin) return {};
     if (!allowAnyOrigin && !cfg.corsOrigins.includes(origin)) return {};
     // Cross-origin callers use bearer tokens; cookies are never allowed cross-origin.
@@ -359,9 +400,16 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
       let sessionToken: string | null = null;
       const authz = req.headers.get("authorization") || "";
       if (authz.startsWith("Bearer ")) {
-        const user = await store.userForApiToken(authz.slice(7).trim());
-        if (!user) throw new AppError(401, "invalid_token", "That API token is not valid. Create a new one on the dashboard.");
-        auth = { user, via: "token" };
+        const bearer = authz.slice(7).trim();
+        const oauth = bearer.startsWith("fbo_");
+        const user = oauth ? await store.userForAccessToken(bearer) : await store.userForApiToken(bearer);
+        if (!user) {
+          if (path === "/mcp") return withCors(mcpChallenge(cfg));
+          throw new AppError(401, "invalid_token", "That API token is not valid. Create a new one on the dashboard.");
+        }
+        auth = { user, via: oauth ? "oauth" : "token" };
+      } else if (isProtocolPath(path)) {
+        // No cookies here: these are called by OAuth/MCP clients, not the browser session.
       } else {
         sessionToken = parseCookies(req)[SESSION_COOKIE] || null;
         const user = sessionToken ? await store.userForSession(sessionToken) : null;

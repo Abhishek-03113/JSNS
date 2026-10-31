@@ -73,6 +73,32 @@ Executable deployment. Then:
 2. Put the printed deployment ID in `APPS_SCRIPT_EXECUTOR_ID` and restart.
 3. While signed in, open `/api/executor/ping`. It should return your email.
 
+## Claude connector (MCP)
+
+The app is also a remote MCP server at `<BASE_URL>/mcp`, so it can be added to claude.ai as a custom
+connector and called from the MCQ Form Builder artifact. claude.ai connects with OAuth, which
+this app provides itself:
+
+- discovery: `/.well-known/oauth-protected-resource` and `/.well-known/oauth-authorization-server`
+- dynamic client registration: `POST /oauth/register`
+- `GET /oauth/authorize`: Google sign-in if needed, then a consent page (PKCE S256 required)
+- `POST /oauth/token`: authorization code and refresh token grants (refresh tokens rotate),
+  1-hour access tokens
+- `POST /oauth/revoke`
+
+Tools: `get_account` (who is signed in, whether forms can be made), `create_google_form`
+(`{ payload }`, returns the edit and student links), `list_google_forms`. Connector tokens only
+work on `/mcp`; the dashboard lists connected apps and can disconnect them.
+
+To connect: Claude → Settings → Connectors → Add custom connector, name it **MCQ Form Builder**
+(the artifact calls the connector by this name) and use the URL `<BASE_URL>/mcp`.
+
+Why a Google OAuth client is still needed: claude.ai signs in to *this app*, and this app signs in to
+*Google*, because the Apps Script runs as the teacher. Google only issues tokens to an OAuth client
+registered in a Google Cloud project, and `scripts.run` additionally requires the executor script and
+that OAuth client to share the same Cloud project. So `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are a
+one-time setup by whoever hosts the app; teachers never see them.
+
 ## API
 
 Browser calls use the session cookie. Everything else uses an API token made on the dashboard:

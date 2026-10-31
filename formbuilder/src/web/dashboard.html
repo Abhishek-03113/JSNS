@@ -44,10 +44,37 @@
     <div class="list" id="list"></div>
   </section>
 
+  <section aria-labelledby="claude-h">
+    <div class="head">
+      <h2 id="claude-h">Connect Claude.<span class="soft">Make forms straight from the builder.</span></h2>
+      <p class="lede">Add this app as a connector in Claude once. The MCQ Form Builder artifact then makes the Google Form for you with one click, and every form shows up above.</p>
+    </div>
+    <div class="card">
+      <div class="linkrow">
+        <div class="linkrow-text">
+          <span class="linkrow-label">Connector URL</span>
+          <code class="linkrow-url" id="mcp-url"></code>
+          <span class="linkrow-hint">Paste this when Claude asks for the server URL.</span>
+        </div>
+        <div class="linkrow-actions"><button class="btn btn-primary" id="mcp-copy" type="button">Copy</button></div>
+      </div>
+      <ol class="steps">
+        <li><span>In Claude, open <b>Settings</b>, then <b>Connectors</b>, and choose <b>Add custom connector</b>.</span></li>
+        <li><span>Name it <code>MCQ Form Builder</code> exactly, so the builder can find it, and paste the URL above.</span></li>
+        <li><span>Click <b>Connect</b>, sign in with this Google account and choose <b>Allow</b>.</span></li>
+        <li><span>Open the MCQ Form Builder and press <b>Make the Google Form</b>.</span></li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 class="card-title">Connected apps</h3>
+      <div class="tokens" id="connections"></div>
+    </div>
+  </section>
+
   <section aria-labelledby="api-h">
     <div class="head">
-      <h2 id="api-h">Connect the builder.<span class="soft">Send papers with an API token.</span></h2>
-      <p class="lede">The builder, or any script, posts a form payload to this API. Each request runs Apps Script as you and the form shows up above.</p>
+      <h2 id="api-h">Use the API.<span class="soft">For scripts and other tools.</span></h2>
+      <p class="lede">Anything that can send an HTTP request can post a form payload with an API token. Each request runs Apps Script as you and the form shows up above.</p>
     </div>
     <div class="card">
       <h3 class="card-title">API tokens</h3>

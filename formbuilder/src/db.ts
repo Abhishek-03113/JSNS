@@ -43,6 +43,14 @@ export interface FormRecord {
   updated_at: Date;
 }
 
+export interface OAuthClient {
+  client_id: string;
+  secret_hash: string | null;
+  name: string;
+  redirect_uris: string[];
+  created_at: Date;
+}
+
 export interface ApiToken {
   id: string;
   user_id: string;
@@ -189,6 +197,98 @@ export class Store {
       WITH t AS (UPDATE api_tokens SET last_used_at = now() WHERE token_hash = ${sha256(token)} RETURNING user_id)
       SELECT u.* FROM t JOIN users u ON u.id = t.user_id`;
     return (row as User) ?? null;
+  }
+
+  // OAuth for MCP clients
+
+  async createOAuthClient(c: { name: string; redirect_uris: string[]; withSecret: boolean }): Promise<{ client_id: string; client_secret?: string }> {
+    const client_id = "fbc_" + randomToken(18);
+    const client_secret = c.withSecret ? "fbs_" + randomToken(30) : undefined;
+    await this.sql`
+      INSERT INTO oauth_clients (client_id, secret_hash, name, redirect_uris)
+      VALUES (${client_id}, ${client_secret ? sha256(client_secret) : null}, ${c.name}, ${JSON.stringify(c.redirect_uris)}::jsonb)`;
+    return { client_id, client_secret };
+  }
+
+  async getOAuthClient(clientId: string): Promise<OAuthClient | null> {
+    const [row] = await this.sql`SELECT * FROM oauth_clients WHERE client_id = ${clientId}`;
+    return (row as OAuthClient) ?? null;
+  }
+
+  async createOAuthCode(c: { client_id: string; user_id: string; redirect_uri: string; code_challenge: string; scope: string }): Promise<string> {
+    const code = randomToken(32);
+    await this.sql`DELETE FROM oauth_codes WHERE expires_at < now()`;
+    await this.sql`
+      INSERT INTO oauth_codes (code_hash, client_id, user_id, redirect_uri, code_challenge, scope, expires_at)
+      VALUES (${sha256(code)}, ${c.client_id}, ${c.user_id}, ${c.redirect_uri}, ${c.code_challenge}, ${c.scope}, now() + interval '5 minutes')`;
+    return code;
+  }
+
+  /** Single use: the code is deleted whether or not it is still valid. */
+  async takeOAuthCode(code: string): Promise<{ client_id: string; user_id: string; redirect_uri: string; code_challenge: string; scope: string } | null> {
+    const [row] = await this.sql`
+      DELETE FROM oauth_codes WHERE code_hash = ${sha256(code)}
+      RETURNING client_id, user_id, redirect_uri, code_challenge, scope, expires_at > now() AS fresh`;
+    return row && row.fresh ? row : null;
+  }
+
+  /** New grant (one per approval) with its first refresh + access token. */
+  async createGrant(g: { client_id: string; user_id: string; scope: string }): Promise<{ grantId: string; refresh: string }> {
+    const refresh = "fbr_" + randomToken(32);
+    const [row] = await this.sql`
+      INSERT INTO oauth_grants (client_id, user_id, refresh_hash, scope, expires_at)
+      VALUES (${g.client_id}, ${g.user_id}, ${sha256(refresh)}, ${g.scope}, now() + interval '180 days')
+      RETURNING id`;
+    return { grantId: row.id, refresh };
+  }
+
+  /** Refresh token rotation: the old refresh token stops working as soon as a new one is issued. */
+  async rotateRefresh(clientId: string, refresh: string): Promise<{ grantId: string; refresh: string; scope: string } | null> {
+    const next = "fbr_" + randomToken(32);
+    const [row] = await this.sql`
+      UPDATE oauth_grants SET refresh_hash = ${sha256(next)}, last_used_at = now(), expires_at = now() + interval '180 days'
+      WHERE refresh_hash = ${sha256(refresh)} AND client_id = ${clientId} AND expires_at > now()
+      RETURNING id, scope`;
+    return row ? { grantId: row.id, refresh: next, scope: row.scope } : null;
+  }
+
+  async issueAccessToken(grantId: string, ttlSeconds: number): Promise<string> {
+    const token = "fbo_" + randomToken(32);
+    await this.sql`DELETE FROM oauth_access_tokens WHERE grant_id = ${grantId} AND expires_at < now()`;
+    await this.sql`
+      INSERT INTO oauth_access_tokens (token_hash, grant_id, expires_at)
+      VALUES (${sha256(token)}, ${grantId}, now() + ${ttlSeconds + " seconds"}::interval)`;
+    return token;
+  }
+
+  async userForAccessToken(token: string): Promise<User | null> {
+    const [row] = await this.sql`
+      SELECT u.* FROM oauth_access_tokens a
+      JOIN oauth_grants g ON g.id = a.grant_id
+      JOIN users u ON u.id = g.user_id
+      WHERE a.token_hash = ${sha256(token)} AND a.expires_at > now()`;
+    if (row) await this.sql`UPDATE oauth_grants SET last_used_at = now() WHERE id = (SELECT grant_id FROM oauth_access_tokens WHERE token_hash = ${sha256(token)})`;
+    return (row as User) ?? null;
+  }
+
+  async listGrants(userId: string): Promise<{ id: string; client_name: string; created_at: Date; last_used_at: Date | null }[]> {
+    return (await this.sql`
+      SELECT g.id, c.name AS client_name, g.created_at, g.last_used_at FROM oauth_grants g
+      JOIN oauth_clients c ON c.client_id = g.client_id
+      WHERE g.user_id = ${userId} AND g.expires_at > now() ORDER BY g.created_at DESC`) as any;
+  }
+
+  async deleteGrant(userId: string, id: string): Promise<boolean> {
+    if (!isUuid(id)) return false;
+    const rows = await this.sql`DELETE FROM oauth_grants WHERE id = ${id} AND user_id = ${userId} RETURNING id`;
+    return rows.length > 0;
+  }
+
+  /** RFC 7009: revoke by refresh or access token. */
+  async revokeToken(token: string): Promise<void> {
+    const h = sha256(token);
+    await this.sql`DELETE FROM oauth_grants WHERE refresh_hash = ${h}`;
+    await this.sql`DELETE FROM oauth_access_tokens WHERE token_hash = ${h}`;
   }
 
   // Forms

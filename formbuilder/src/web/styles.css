@@ -195,6 +195,7 @@ section { display: flex; flex-direction: column; gap: 20px; }
 .steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 10px; }
 .steps li { counter-increment: s; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; font: 400 13px/20px var(--sans); color: var(--ink-title); }
 .steps li::before { content: counter(s); width: 22px; height: 22px; border-radius: 50%; background: var(--paper); box-shadow: var(--shadow-tab); display: grid; place-items: center; font: 600 11px/1 var(--sans); color: var(--ink); margin-top: -1px; }
+.steps.bullets li::before { content: ""; width: 6px; height: 6px; margin: 7px 8px 0; box-shadow: none; background: var(--blue); }
 .steps b { font-weight: 500; color: var(--ink); }
 .steps code { font: 500 12px/20px var(--mono); color: var(--ink); background: var(--tile); border-radius: 4px; padding: 0 4px; }
 

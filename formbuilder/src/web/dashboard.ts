@@ -457,6 +457,33 @@ function renderCurl(token?: string) {
 }
 $("curl-copy").onclick = () => copy($("curl").textContent || "", "Copied.");
 
+/* Claude connector */
+
+async function loadConnections() {
+  const r = await api<{ connections: { id: string; name: string; connectedAt: string; lastUsedAt: string | null }[] }>("GET", "/api/connections");
+  const box = $("connections");
+  box.textContent = "";
+  if (!r.connections.length) {
+    box.append(el("div", "linkrow-hint", "Nothing connected yet. Follow the steps above to add Claude."));
+    return;
+  }
+  for (const c of r.connections) {
+    const row = el("div", "token");
+    row.append(el("span", "grow", c.name), el("span", "when", c.lastUsedAt ? "Used " + when(c.lastUsedAt) : "Connected " + when(c.connectedAt)));
+    const rm = el("button", "link danger", "Disconnect");
+    rm.type = "button";
+    rm.onclick = async () => {
+      await api("DELETE", "/api/connections/" + c.id);
+      toast(c.name + " disconnected. Connect it again from Claude's settings.");
+      loadConnections();
+    };
+    row.append(rm);
+    box.append(row);
+  }
+}
+$("mcp-url").textContent = location.origin + "/mcp";
+$("mcp-copy").onclick = () => copy(location.origin + "/mcp", "Connector URL copied.");
+
 /* Header + start */
 
 $("logout").onclick = async () => {
@@ -491,7 +518,7 @@ async function start() {
     warn.textContent = "The executor script isn't set up on the server yet (APPS_SCRIPT_EXECUTOR_ID), so new forms will fail.";
     warn.hidden = false;
   }
-  await Promise.all([loadForms(), loadTokens()]);
+  await Promise.all([loadForms(), loadTokens(), loadConnections()]);
 }
 
 start().catch((e) => {
