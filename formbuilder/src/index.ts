@@ -1,4 +1,4 @@
-import { createApp } from "./app.ts";
+import { createApp } from "./application.ts";
 import { loadConfig } from "./config.ts";
 
 /**
@@ -25,3 +25,6 @@ try {
 
 const server = Bun.serve({ port, fetch: (req) => fetchHandler(req) });
 console.log(`Listening on ${server.url}`);
+
+// Vercel's Bun runtime takes the server from the default export.
+export default server;

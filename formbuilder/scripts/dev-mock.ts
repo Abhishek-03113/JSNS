@@ -2,7 +2,7 @@
  * Runs the full app against a fake Google (test/mockGoogle.ts) so the sign-in, dashboard and API can be
  * tried without a Google Cloud project. Needs a Postgres database: DATABASE_URL, or a local default.
  */
-import { createApp } from "../src/app.ts";
+import { createApp } from "../src/application.ts";
 import { loadConfig } from "../src/config.ts";
 import { mockEnv, startMockGoogle } from "../test/mockGoogle.ts";
 

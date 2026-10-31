@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, test } from "bun:test";
 import { SQL } from "bun";
 import { createRequire } from "node:module";
-import { createApp, type App } from "../src/app.ts";
+import { createApp, type App } from "../src/application.ts";
 import { loadConfig } from "../src/config.ts";
 import { buildScript, validatePayload, type FormPayload } from "../src/mcq/script.ts";
 import { mockEnv, startMockGoogle, type MockGoogle } from "./mockGoogle.ts";
