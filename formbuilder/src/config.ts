@@ -43,7 +43,9 @@ function list(v: string | undefined): string[] {
 
 export function loadConfig(env: Record<string, string | undefined> = process.env): Config {
   const port = Number(env.PORT || 3000);
-  const baseUrl = (env.BASE_URL || `http://localhost:${port}`).replace(/\/$/, "");
+  // On Vercel, default to the project's production domain.
+  const vercelHost = env.VERCEL_PROJECT_PRODUCTION_URL;
+  const baseUrl = (env.BASE_URL || (vercelHost ? `https://${vercelHost}` : `http://localhost:${port}`)).replace(/\/$/, "");
   const cfg: Config = {
     port,
     baseUrl,

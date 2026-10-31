@@ -9,3 +9,5 @@ test-results/
 !tsconfig.json
 !apps-script/appsscript.json
 !.env.example
+!vercel.json
+.vercel

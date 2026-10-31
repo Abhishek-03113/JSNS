@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { ASSETS } from "./assets.ts";
 import type { Config } from "./config.ts";
 import { GOOGLE_SCOPES } from "./config.ts";
 import { pkceChallenge, randomToken, Sealer } from "./crypto.ts";
@@ -10,7 +10,6 @@ import { cookie, errorResponse, json, parseCookies, readJson, redirect, Router }
 import { buildScript, questionCount, unansweredCount, validatePayload, type FormPayload } from "./mcq/script.ts";
 
 const SESSION_COOKIE = "fb_session";
-const WEB_DIR = join(import.meta.dir, "web");
 const MAX_SCRIPT = 400_000;
 
 interface Auth {
@@ -130,17 +129,17 @@ async function ownForm(ctx: Ctx, user: User, id: string): Promise<FormRecord> {
 
 // Routes
 
-function buildRouter(dashboardJs: string) {
+function buildRouter() {
   const r = new Router<Ctx>();
-  const file = (name: string, type: string) => () =>
-    new Response(Bun.file(join(WEB_DIR, name)), { headers: { "content-type": type, "cache-control": "no-cache" } });
+  const file = (name: string, _type?: string) => () =>
+    new Response(ASSETS[name]!.body, { headers: { "content-type": ASSETS[name]!.type, "cache-control": "no-cache" } });
 
   // Pages: the dashboard sits behind Google sign-in
   r.on("GET", "/", (_req, _p, ctx) => (ctx.auth?.via === "session" ? file("dashboard.html", "text/html; charset=utf-8")() : redirect("/login")));
   r.on("GET", "/login", (_req, _p, ctx) => (ctx.auth?.via === "session" ? redirect("/") : file("login.html", "text/html; charset=utf-8")()));
   r.on("GET", "/assets/styles.css", file("styles.css", "text/css; charset=utf-8"));
   r.on("GET", "/assets/favicon.svg", file("favicon.svg", "image/svg+xml"));
-  r.on("GET", "/assets/dashboard.js", () => new Response(dashboardJs, { headers: { "content-type": "text/javascript; charset=utf-8", "cache-control": "no-cache" } }));
+  r.on("GET", "/assets/dashboard.js", file("dashboard.js"));
   r.on("GET", "/healthz", async (_req, _p, ctx) => {
     await ctx.store.sql`SELECT 1`;
     return json({ ok: true, executorConfigured: !!ctx.cfg.executorScriptId });
@@ -322,18 +321,12 @@ function buildRouter(dashboardJs: string) {
   return r;
 }
 
-async function bundleDashboard(): Promise<string> {
-  const out = await Bun.build({ entrypoints: [join(WEB_DIR, "dashboard.ts")], target: "browser", minify: true });
-  if (!out.success) throw new Error("Dashboard build failed:\n" + out.logs.join("\n"));
-  return out.outputs[0]!.text();
-}
-
 export async function createApp(cfg: Config, deps: { store?: Store } = {}): Promise<App> {
   const store = deps.store ?? new Store(cfg.databaseUrl);
   await store.migrate();
   const tokens = new TokenService(cfg, store, new Sealer(cfg.sessionSecret));
   const script = new AppsScriptClient(cfg);
-  const router = buildRouter(await bundleDashboard());
+  const router = buildRouter();
   const appOrigin = new URL(cfg.baseUrl).origin;
   const allowAnyOrigin = cfg.corsOrigins.includes("*");
 

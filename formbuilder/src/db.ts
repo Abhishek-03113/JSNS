@@ -1,6 +1,5 @@
 import { SQL } from "bun";
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { MIGRATIONS } from "./assets.ts";
 import { randomToken, sha256 } from "./crypto.ts";
 import type { FormPayload } from "./mcq/script.ts";
 
@@ -53,7 +52,6 @@ export interface ApiToken {
   last_used_at: Date | null;
 }
 
-const MIGRATIONS_DIR = join(import.meta.dir, "..", "migrations");
 const OAUTH_STATE_TTL = "10 minutes";
 
 export class Store {
@@ -73,9 +71,8 @@ export class Store {
     await sql`ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY`;
     const done = new Set((await sql`SELECT name FROM schema_migrations`).map((r: { name: string }) => r.name));
     const applied: string[] = [];
-    for (const name of readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith(".sql")).sort()) {
+    for (const { name, sql: text } of MIGRATIONS) {
       if (done.has(name)) continue;
-      const text = await Bun.file(join(MIGRATIONS_DIR, name)).text();
       await sql.begin(async (tx) => {
         await tx.unsafe(text);
         await tx`INSERT INTO schema_migrations (name) VALUES (${name})`;
