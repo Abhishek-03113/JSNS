@@ -134,7 +134,10 @@ section { display: flex; flex-direction: column; gap: 20px; }
 .empty { background: var(--card); border-radius: var(--radius-card); padding: 28px 14px; text-align: center; color: var(--ink-body); font-size: 13px; }
 
 /* Questions and answers: the artifact's review cards, read-only, scrolling inside the form card */
-.qscroll { max-height: 520px; overflow-y: auto; overscroll-behavior: contain; background: var(--ground); border: 1px solid var(--line); border-radius: var(--radius-image); padding: 8px; display: flex; flex-direction: column; gap: 8px; }
+.qbox { display: flex; flex-direction: column; background: var(--ground); border: 1px solid var(--line); border-radius: var(--radius-image); overflow: hidden; }
+.qbox-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--paper); font: 400 12px/19px var(--sans); color: var(--ink-body); font-variant-numeric: tabular-nums; }
+.qbox-head b { font-weight: 500; color: var(--ink-title); }
+.qscroll { max-height: min(380px, 50vh); overflow-y: auto; overscroll-behavior: contain; scrollbar-gutter: stable; padding: 8px; display: flex; flex-direction: column; gap: 8px; }
 .qscroll .sec-row { display: flex; flex-direction: column; gap: 2px; padding: 10px 4px 2px; }
 .qscroll .sec-row h3 { margin: 0; font: 500 20px/26px var(--serif); letter-spacing: -0.01em; color: var(--ink); }
 .qscroll .sec-row p { margin: 0; font: 400 12px/19px var(--sans); color: var(--ink-body); }

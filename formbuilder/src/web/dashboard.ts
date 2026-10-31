@@ -150,8 +150,16 @@ function splitOption(opt: string, i: number): { label: string; text: string } {
 
 /** Read-only version of the artifact's "Check the answers" list, scrolling inside the form card. */
 function renderQuestions(f: FormItem, items: PayloadItem[]): HTMLElement {
+  const wrap = el("div", "qbox");
+  const total = items.filter((i) => "q" in i).length;
+  const missing = items.filter((i) => "q" in i && i.answer < 0).length;
+  const head = el("div", "qbox-head");
+  const count = el("span");
+  count.append(el("b", undefined, String(total)), " " + (total === 1 ? "question" : "questions") + (missing ? ", " + missing + " without an answer" : ""));
+  head.append(count, el("span", undefined, total > 2 ? "Scroll for more" : ""));
   const box = el("div", "qscroll");
   box.tabIndex = 0;
+  wrap.append(head, box);
   box.setAttribute("aria-label", "Questions and answers in " + f.title);
   let no = 0;
   for (const it of items) {
@@ -191,7 +199,7 @@ function renderQuestions(f: FormItem, items: PayloadItem[]): HTMLElement {
     }
     box.append(card);
   }
-  return box;
+  return wrap;
 }
 
 function renderForm(f: FormItem): HTMLElement {
@@ -292,7 +300,7 @@ async function toggleQuestions(f: FormItem) {
   }
   try {
     const r = await api<{ form: { payload: { items: PayloadItem[] } } }>("GET", "/api/forms/" + f.id);
-    state.openQuestions[f.id] = r.form.payload.items;
+    state.openQuestions = { [f.id]: r.form.payload.items };
     renderList();
   } catch (e) {
     toast((e as Error).message);
