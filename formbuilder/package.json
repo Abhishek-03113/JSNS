@@ -5,9 +5,10 @@
   "type": "module",
   "description": "API that turns MCQ question papers into graded Google Forms by running Apps Script as the signed-in Google user.",
   "scripts": {
-    "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts",
-    "dev:mock": "bun run scripts/dev-mock.ts",
+    "embed": "bun run scripts/embed-assets.ts",
+    "start": "bun run embed && bun run src/index.ts",
+    "dev": "bun run embed && bun --watch run src/index.ts",
+    "dev:mock": "bun run embed && bun run scripts/dev-mock.ts",
     "setup:executor": "bun run scripts/setup-executor.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit"

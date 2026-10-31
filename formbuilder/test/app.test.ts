@@ -313,3 +313,11 @@ describe("tokens, CSRF and CORS", () => {
     expect(r.headers.get("access-control-allow-origin")).toBe("https://artifact.example");
   });
 });
+
+describe("build", () => {
+  test("embedded assets are up to date with src/web and migrations", async () => {
+    const { renderAssets } = await import("../scripts/embed-assets.ts");
+    const current = await Bun.file(new URL("../src/generated/assets.ts", import.meta.url)).text();
+    expect(current === (await renderAssets())).toBe(true);
+  });
+});
