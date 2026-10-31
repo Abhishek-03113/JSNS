@@ -1,0 +1,11 @@
+node_modules/
+data/
+*.sqlite
+*.sqlite-*
+.env
+test-results/
+# The repo root ignores *.json and .env.*; this app needs these tracked.
+!package.json
+!tsconfig.json
+!apps-script/appsscript.json
+!.env.example

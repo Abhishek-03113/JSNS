@@ -216,3 +216,10 @@ MIT
 ## Contributing
 
 Feel free to add more tools or enhance existing functionality!
+
+---
+
+## MCQ Form Builder API (`formbuilder/`)
+
+A separate Bun + TypeScript service that runs Google Apps Script as the signed-in user to turn MCQ
+Form Builder payloads into graded Google Forms. See [`formbuilder/README.md`](formbuilder/README.md).

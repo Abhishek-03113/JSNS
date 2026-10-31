@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Forms · MCQ Form Builder</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="brand" href="/">
+      <svg viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="6" fill="#181614"/><circle cx="7" cy="8" r="1.8" fill="none" stroke="#fffffd" stroke-width="1.3"/><circle cx="7" cy="14" r="1.8" fill="#4078e8"/><rect x="11" y="7.3" width="6" height="1.4" rx=".7" fill="#fffffd"/><rect x="11" y="13.3" width="6" height="1.4" rx=".7" fill="#fffffd"/></svg>
+      MCQ Form Builder
+    </a>
+    <div class="who">
+      <img id="avatar" alt="" hidden referrerpolicy="no-referrer">
+      <span class="email" id="email"></span>
+      <button class="link" id="logout" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <section aria-labelledby="forms-h">
+    <div class="head">
+      <h1 id="forms-h">Your forms.<span class="soft" id="forms-soft">Loading...</span></h1>
+      <div class="summary" id="summary"></div>
+    </div>
+    <div class="warnbar" id="warn" hidden></div>
+    <div class="toolbar">
+      <div class="tabs" role="tablist" aria-label="Show">
+        <button class="tab" role="tab" id="tab-all" aria-selected="true" type="button">All</button>
+        <button class="tab" role="tab" id="tab-created" aria-selected="false" type="button">Made</button>
+        <button class="tab" role="tab" id="tab-failed" aria-selected="false" type="button">Failed</button>
+      </div>
+      <div class="actions">
+        <span class="tool-status" id="refresh-status" aria-live="polite"></span>
+        <button class="btn btn-grey" id="refresh" type="button">Refresh response counts</button>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section aria-labelledby="api-h">
+    <div class="head">
+      <h2 id="api-h">Connect the builder.<span class="soft">Send papers with an API token.</span></h2>
+      <p class="lede">The builder, or any script, posts a form payload to this API. Each request runs Apps Script as you and the form shows up above.</p>
+    </div>
+    <div class="card">
+      <h3 class="card-title">API tokens</h3>
+      <p class="card-sub">A token acts as your Google account here. Keep it private and revoke it when you're done.</p>
+      <div class="row">
+        <div class="field"><label for="token-name">Token name</label><input id="token-name" type="text" placeholder="MCQ Form Builder artifact" maxlength="60"></div>
+        <button class="btn btn-primary" id="token-create" type="button">Create token</button>
+      </div>
+      <div class="secret panel" id="secret" hidden>
+        <span class="card-title">Copy this token now. It won't be shown again.</span>
+        <code id="secret-value"></code>
+        <div class="actions"><button class="btn btn-primary" id="secret-copy" type="button">Copy token</button><button class="link" id="secret-hide" type="button">Hide</button></div>
+      </div>
+      <div class="tokens" id="tokens"></div>
+    </div>
+    <div class="card">
+      <div class="code-head">
+        <h3 class="card-title">Make a form from the command line</h3>
+        <button class="btn btn-grey" id="curl-copy" type="button">Copy</button>
+      </div>
+      <pre class="code" id="curl" tabindex="0" aria-label="Example request"></pre>
+    </div>
+  </section>
+
+  <footer>
+    <span>Removing a form here keeps it in Google Forms. Delete it there to remove it for good.</span>
+    <span>Response counts come from Google when you refresh.</span>
+  </footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+<script type="module" src="/assets/dashboard.js"></script>
+</body>
+</html>

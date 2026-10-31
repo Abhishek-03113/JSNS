@@ -1,0 +1,19 @@
+{
+  "name": "mcq-formbuilder",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "API that turns MCQ question papers into graded Google Forms by running Apps Script as the signed-in Google user.",
+  "scripts": {
+    "start": "bun run src/index.ts",
+    "dev": "bun --watch run src/index.ts",
+    "dev:mock": "bun run scripts/dev-mock.ts",
+    "setup:executor": "bun run scripts/setup-executor.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/bun": "1.4.4",
+    "typescript": "^5.9.3"
+  }
+}
