@@ -112,8 +112,7 @@ carries a warning). Invalid payloads get `422` with every problem in `error.deta
 Each made form carries the two links the script returns: `editUrl` (the teacher's editor) and
 `publishedUrl` (the student form). The executor also asks Google for a `forms.gle` short link
 (`shortUrl`); `studentUrl` is that short link when there is one, otherwise `publishedUrl`. The
-dashboard shows both links as clickable URLs with Copy and Share (the phone's share sheet where the
-browser has one, otherwise it copies).
+dashboard shows both links as clickable URLs with Copy and Open in new tab.
 
 Errors always look like `{ "error": { "code", "message", "details"? } }`. A failed Apps Script run
 is stored with `status: "failed"` and returned in `error.details.form`.

@@ -125,21 +125,8 @@ function renderSummary() {
 
 const isHttps = (u: string | null): u is string => !!u && /^https:\/\//.test(u);
 
-async function share(title: string, label: string, url: string) {
-  const data = { title, text: label + " for " + title, url };
-  if (navigator.share && (!navigator.canShare || navigator.canShare(data))) {
-    try {
-      await navigator.share(data);
-      return;
-    } catch (e) {
-      if ((e as DOMException).name === "AbortError") return;
-    }
-  }
-  copy(url, label + " copied. Paste it anywhere to share.");
-}
-
-/** One of the two links the script returns: the URL itself is clickable, with copy and share. */
-function linkRow(f: FormItem, label: string, hint: string, url: string | null): HTMLElement {
+/** One of the two links the script returns: the URL itself is clickable, with copy and open-in-new-tab. */
+function linkRow(label: string, hint: string, url: string | null): HTMLElement {
   const row = el("div", "linkrow");
   const text = el("div", "linkrow-text");
   text.append(el("span", "linkrow-label", label));
@@ -163,7 +150,14 @@ function linkRow(f: FormItem, label: string, hint: string, url: string | null): 
     acts.append(btn);
   };
   b("Copy", "btn-grey", () => copy(url!, label + " copied."));
-  b("Share", "btn-primary", () => share(f.title, label, url!));
+  if (isHttps(url)) {
+    const open = el("a", "btn btn-primary", "Open in new tab");
+    open.href = url;
+    open.target = "_blank";
+    open.rel = "noopener";
+    open.setAttribute("aria-label", "Open " + label.toLowerCase() + " in a new tab");
+    acts.append(open);
+  }
   row.append(acts);
   return row;
 }
@@ -269,8 +263,8 @@ function renderForm(f: FormItem): HTMLElement {
     card.append(stats);
     const links = el("div", "linkrows");
     links.append(
-      linkRow(f, "Edit link", "For you: change questions, settings and see responses.", f.editUrl),
-      linkRow(f, "Student link", "Send this to students to take the quiz.", f.studentUrl || f.publishedUrl),
+      linkRow("Edit link", "For you: change questions, settings and see responses.", f.editUrl),
+      linkRow("Student link", "Send this to students to take the quiz.", f.studentUrl || f.publishedUrl),
     );
     card.append(links);
   } else if (f.status === "failed" && f.error) {
