@@ -20,6 +20,8 @@ interface FormItem {
   createdAt: string;
 }
 
+type PayloadItem = { section: string; help?: string } | { q: string; options: string[]; answer: number; word?: string };
+
 interface TokenItem {
   id: string;
   name: string;
@@ -91,7 +93,7 @@ const plural = (n: number, one: string, many: string) => n + " " + (n === 1 ? on
 const state = {
   forms: [] as FormItem[],
   filter: "all" as "all" | "created" | "failed",
-  openScript: {} as Record<string, string>,
+  openQuestions: {} as Record<string, PayloadItem[]>,
   busy: {} as Record<string, boolean>,
 };
 
@@ -136,6 +138,62 @@ function statusChip(f: FormItem) {
   return el("span", "chip wait", "Running");
 }
 
+const TICK =
+  '<svg class="tick" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="9" fill="#4078e8"/><path d="M5 9.3l2.6 2.5L13 6.5" fill="none" stroke="#fffffd" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const LETTERS = "ABCDEFGHIJ";
+
+/** Options are stored as sent, e.g. "B) They walk" when the builder kept letters. Split the label back out. */
+function splitOption(opt: string, i: number): { label: string; text: string } {
+  const m = opt.match(/^\s*\(?([A-Za-z]|अ|ब|क|ड|स|द|इ)\)\s+(.*)$/s);
+  return m ? { label: m[1]!, text: m[2]! } : { label: LETTERS[i] || String(i + 1), text: opt };
+}
+
+/** Read-only version of the artifact's "Check the answers" list, scrolling inside the form card. */
+function renderQuestions(f: FormItem, items: PayloadItem[]): HTMLElement {
+  const box = el("div", "qscroll");
+  box.tabIndex = 0;
+  box.setAttribute("aria-label", "Questions and answers in " + f.title);
+  let no = 0;
+  for (const it of items) {
+    if ("section" in it) {
+      const row = el("div", "sec-row");
+      row.append(el("h3", undefined, it.section));
+      if (it.help) row.append(el("p", undefined, it.help));
+      box.append(row);
+      continue;
+    }
+    no++;
+    const card = el("article", "q" + (it.answer < 0 ? " flagged" : ""));
+    const head = el("div", "qhead");
+    head.append(el("span", "qnum", String(no)), el("span", "spacer"));
+    if (it.answer < 0) head.append(el("span", "chip warn", "No answer"));
+    card.append(head, el("p", "qtext", it.q));
+    if (it.word) {
+      const w = el("p", "qword", "Underlined word: ");
+      w.append(el("b", undefined, it.word));
+      card.append(w);
+    }
+    const opts = el("div", "opts");
+    it.options.forEach((o, oi) => {
+      const { label, text } = splitOption(o, oi);
+      const correct = oi === it.answer;
+      const d = el("div", "opt" + (correct ? " is-correct" : ""));
+      d.setAttribute("aria-label", "Option " + label + ": " + text + (correct ? ", correct answer" : ""));
+      d.append(el("span", "lbl", label), el("span", "otext", text));
+      d.insertAdjacentHTML("beforeend", TICK);
+      opts.append(d);
+    });
+    card.append(opts);
+    if (it.answer < 0) {
+      const n = el("div", "note");
+      n.append(el("span", undefined, "No correct answer was set, so this question scores 0 for everyone."));
+      card.append(n);
+    }
+    box.append(card);
+  }
+  return box;
+}
+
 function renderForm(f: FormItem): HTMLElement {
   const card = el("article", "form" + (f.status === "failed" ? " failed" : ""));
   card.id = "form-" + f.id;
@@ -167,7 +225,6 @@ function renderForm(f: FormItem): HTMLElement {
     card.append(stats);
     const links = el("div", "links");
     links.append(linkButton("Edit form", f.editUrl, true), linkButton("Student link", f.publishedUrl), linkButton("Responses", f.responsesUrl));
-    if (f.scriptEditUrl) links.append(linkButton("Script project", f.scriptEditUrl));
     card.append(links);
   } else if (f.status === "failed" && f.error) {
     const n = el("div", "note");
@@ -175,22 +232,8 @@ function renderForm(f: FormItem): HTMLElement {
     card.append(n);
   }
 
-  if (state.openScript[f.id] !== undefined) {
-    const wrap = el("div", "card");
-    wrap.style.padding = "0";
-    wrap.style.background = "none";
-    const ch = el("div", "code-head");
-    ch.append(el("span", "code-meta", "Apps Script · " + plural(state.openScript[f.id]!.split("\n").length, "line", "lines")));
-    const cp = el("button", "btn btn-grey", "Copy script");
-    cp.type = "button";
-    cp.onclick = () => copy(state.openScript[f.id]!, "Copied. Paste it into Apps Script.");
-    ch.append(cp);
-    const pre = el("pre", "code", state.openScript[f.id]);
-    pre.tabIndex = 0;
-    pre.setAttribute("aria-label", "Script for " + f.title);
-    wrap.append(ch, pre);
-    card.append(wrap);
-  }
+  const qs = state.openQuestions[f.id];
+  if (qs) card.append(renderQuestions(f, qs));
 
   const foot = el("div", "ffoot");
   const busy = !!state.busy[f.id];
@@ -203,8 +246,7 @@ function renderForm(f: FormItem): HTMLElement {
     return b;
   };
   if (f.status === "failed") btn(busy ? "Running..." : "Try again", "btn btn-paper", () => retry(f));
-  btn(state.openScript[f.id] !== undefined ? "Hide script" : "Show script", "link", () => toggleScript(f));
-  if (f.status === "created" && !f.scriptEditUrl) btn("Save script to Apps Script", "link", () => saveProject(f));
+  btn(qs ? "Hide questions" : "Show questions and answers", "link", () => toggleQuestions(f));
   btn("Remove from list", "link danger", () => removeForm(f));
   card.append(foot);
   return card;
@@ -242,16 +284,19 @@ async function loadForms() {
   renderAll();
 }
 
-async function toggleScript(f: FormItem) {
-  if (state.openScript[f.id] !== undefined) {
-    delete state.openScript[f.id];
+async function toggleQuestions(f: FormItem) {
+  if (state.openQuestions[f.id]) {
+    delete state.openQuestions[f.id];
     renderList();
     return;
   }
-  const res = await fetch("/api/forms/" + f.id + "/script", { credentials: "same-origin" });
-  if (!res.ok) return toast("Couldn't load the script.");
-  state.openScript[f.id] = await res.text();
-  renderList();
+  try {
+    const r = await api<{ form: { payload: { items: PayloadItem[] } } }>("GET", "/api/forms/" + f.id);
+    state.openQuestions[f.id] = r.form.payload.items;
+    renderList();
+  } catch (e) {
+    toast((e as Error).message);
+  }
 }
 
 async function retry(f: FormItem) {
@@ -271,27 +316,12 @@ async function retry(f: FormItem) {
   }
 }
 
-async function saveProject(f: FormItem) {
-  state.busy[f.id] = true;
-  renderList();
-  try {
-    const r = await api<{ form: FormItem; scriptEditUrl: string }>("POST", "/api/forms/" + f.id + "/script-project");
-    replaceForm(r.form);
-    toast("Saved to your Apps Script projects.");
-  } catch (e) {
-    toast((e as Error).message);
-  } finally {
-    delete state.busy[f.id];
-    renderAll();
-  }
-}
-
 async function removeForm(f: FormItem) {
   if (!confirm('Remove "' + f.title + '" from this list? The Google Form itself stays in your Drive.')) return;
   try {
     await api("DELETE", "/api/forms/" + f.id);
     state.forms = state.forms.filter((x) => x.id !== f.id);
-    delete state.openScript[f.id];
+    delete state.openQuestions[f.id];
     renderAll();
     toast("Removed from the list.");
   } catch (e) {
