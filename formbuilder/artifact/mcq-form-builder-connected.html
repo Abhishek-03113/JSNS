@@ -1,0 +1,1184 @@
+<title>Connected MCQ Form Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap">
+<style>
+/* Layout: one calm 896px column on an off-white ground; three grey cards in reading order (drop the paper, check the answers, make the form). Resurf tokens; single light theme by choice, as in the Resurf system. */
+:root {
+  --ground: #f8f8f8;
+  --card: #efefef;
+  --tile: #f3f3f3;
+  --paper: #fffffd;
+  --ink: #0f100d;
+  --ink-button: #181614;
+  --ink-title: #2b2b29;
+  --ink-body: #6c6d6a;
+  --ink-nav: #5a5a5a;
+  --ink-faint: #939393;
+  --line: #e5e6e3;
+  --chip: #dcdcdc;
+  --grey-button: #e6e6e4;
+  --blue: #4078e8;
+  --blue-ink: #2d5fc8;
+  --orange: #f07018;
+  --warn-ink: #8a3d06;
+  --serif: "EB Garamond", Garamond, "Times New Roman", serif;
+  --sans: "Inter", "Noto Sans Devanagari", -apple-system, "SF Pro Text", system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Noto Sans Devanagari", monospace;
+  --radius-card: 14px;
+  --radius-button: 8px;
+  --radius-small: 6px;
+  --radius-image: 12px;
+  --shadow-float: 0 1px 2px rgba(0,0,0,.06), 0 6px 18px rgba(0,0,0,.07);
+  --shadow-tab: 0 1px 2px rgba(0,0,0,.08);
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--ground);
+  color: var(--ink-title);
+  font: 400 14px/21px var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap {
+  max-width: 896px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+@media (min-width: 720px) {
+  .wrap { padding-left: max(32px, env(safe-area-inset-left, 0px)); padding-right: max(32px, env(safe-area-inset-right, 0px)); }
+}
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* Nav */
+.bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-block: 18px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; font: 500 13px/20px var(--sans); color: var(--ink); }
+.brand svg { width: 22px; height: 22px; flex: none; }
+.bar-note { font: 400 12px/19px var(--sans); color: var(--ink-nav); }
+
+/* Headlines */
+.head { display: flex; flex-direction: column; gap: 14px; max-width: 620px; }
+h1, h2 { margin: 0; font-family: var(--serif); font-weight: 500; letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
+h1 { font-size: 40px; line-height: 44px; }
+h2 { font-size: 32px; line-height: 36px; }
+h1 .soft, h2 .soft { display: block; color: var(--ink-faint); }
+@media (max-width: 480px) { h1 { font-size: 34px; line-height: 38px; } h2 { font-size: 28px; line-height: 32px; } }
+.lede { margin: 0; color: var(--ink-body); max-width: 60ch; }
+section { display: flex; flex-direction: column; gap: 20px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  min-height: 36px; padding: 0 14px; border: 0; border-radius: var(--radius-button);
+  font: 500 13px/20px var(--sans); cursor: pointer; white-space: nowrap;
+}
+.btn-primary { background: var(--ink-button); color: var(--paper); }
+.btn-primary:hover { background: #2b2825; }
+.btn-grey { background: var(--grey-button); color: var(--ink-title); }
+.btn-grey:hover { background: #dcdcda; }
+.btn-paper { background: var(--paper); color: var(--ink-title); box-shadow: var(--shadow-tab); }
+.btn[disabled] { opacity: .5; cursor: default; }
+a.btn { text-decoration: none; }
+.link { background: none; border: 0; padding: 0; font: 500 12px/19px var(--sans); color: var(--ink-nav); cursor: pointer; text-decoration: underline; text-decoration-color: var(--chip); text-underline-offset: 3px; }
+.link:hover { color: var(--ink); }
+
+/* Cards */
+.card { background: var(--card); border-radius: var(--radius-card); padding: 14px; display: flex; flex-direction: column; gap: 14px; }
+.panel { background: var(--paper); border-radius: var(--radius-image); box-shadow: var(--shadow-float); }
+
+/* Upload */
+.drop { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: center; padding: 22px; transition: box-shadow .15s; }
+.drop.over { box-shadow: 0 0 0 2px var(--blue), var(--shadow-float); }
+.drop-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.drop-title { font: 500 14px/20px var(--sans); color: var(--ink); }
+.drop-sub { font: 400 12px/19px var(--sans); color: var(--ink-body); }
+.drop-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 600px) { .drop { grid-template-columns: 1fr; } }
+.paste { display: flex; flex-direction: column; gap: 10px; padding: 14px; }
+.paste textarea { width: 100%; min-height: 180px; resize: vertical; border: 1px solid var(--line); border-radius: var(--radius-button); background: var(--paper); padding: 10px 12px; font: 400 13px/20px var(--mono); }
+.paste-row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font: 400 13px/20px var(--sans); color: var(--ink-title); padding: 0 4px; }
+.status.error { color: var(--warn-ink); }
+.file-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--paper); border-radius: 999px; padding: 3px 10px; font: 500 12px/18px var(--sans); color: var(--ink-title); box-shadow: var(--shadow-tab); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.example-tag { background: var(--chip); color: var(--ink-title); border-radius: 999px; padding: 2px 8px; font: 500 11px/14px var(--sans); }
+
+.formats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.fmt { background: var(--tile); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 16px; min-height: 82px; justify-content: space-between; }
+.fmt code { font: 500 12px/16px var(--mono); color: var(--ink); }
+.fmt span { font: 400 12px/16px var(--sans); color: var(--ink-nav); }
+
+/* Review */
+.summary { display: flex; flex-wrap: wrap; gap: 6px 18px; font: 400 13px/20px var(--sans); color: var(--ink-body); font-variant-numeric: tabular-nums; }
+.summary b { font-weight: 500; color: var(--ink-title); }
+.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tabs { display: inline-flex; background: var(--tile); border: 1px solid var(--line); border-radius: 999px; padding: 3px; gap: 2px; }
+.tab { border: 0; background: none; border-radius: 999px; padding: 4px 12px; font: 500 13px/20px var(--sans); color: var(--ink-nav); cursor: pointer; font-variant-numeric: tabular-nums; }
+.tab[aria-selected="true"] { background: var(--paper); color: var(--ink); box-shadow: var(--shadow-tab); }
+.ask { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ask-status { font: 400 12px/19px var(--sans); color: var(--ink-body); }
+.ask-status.error { color: var(--warn-ink); }
+
+.list { display: flex; flex-direction: column; gap: 8px; }
+.sec-row { display: flex; flex-direction: column; gap: 2px; padding: 18px 4px 6px; }
+.sec-row h3 { margin: 0; font: 500 20px/26px var(--serif); letter-spacing: -0.01em; color: var(--ink); }
+.sec-row p { margin: 0; font: 400 12px/19px var(--sans); color: var(--ink-body); }
+.q { background: var(--card); border-radius: var(--radius-card); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.q.flagged { box-shadow: inset 0 0 0 1px #f3c9a8; }
+.qhead { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qnum { font: 600 12px/18px var(--sans); color: var(--ink); background: var(--paper); border-radius: 999px; min-width: 28px; padding: 1px 8px; text-align: center; font-variant-numeric: tabular-nums; box-shadow: var(--shadow-tab); }
+.qsec { font: 400 12px/18px var(--sans); color: var(--ink-body); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40ch; }
+.qhead .spacer { flex: 1; }
+.chip { display: inline-flex; align-items: center; gap: 5px; background: var(--chip); color: var(--ink-title); border-radius: 999px; padding: 2px 8px; font: 500 11px/14px var(--sans); }
+.chip.warn::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--orange); }
+.chip.ok { background: var(--paper); box-shadow: var(--shadow-tab); }
+.chip.ok::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--blue); }
+.qtext { margin: 0; font: 500 14px/21px var(--sans); color: var(--ink); overflow-wrap: anywhere; }
+.qword { margin: -4px 0 0; font: 400 12px/19px var(--sans); color: var(--ink-body); }
+.qword b { font-weight: 500; color: var(--ink-title); text-decoration: underline; text-underline-offset: 3px; }
+.opts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+@media (max-width: 560px) { .opts { grid-template-columns: minmax(0, 1fr); } }
+.opt { display: flex; align-items: flex-start; gap: 10px; text-align: left; background: var(--paper); border: 0; border-radius: var(--radius-button); padding: 8px 10px; cursor: pointer; box-shadow: 0 0 0 1px var(--line); min-width: 0; }
+.opt:hover { box-shadow: 0 0 0 1px var(--ink-faint); }
+.opt .lbl { flex: none; width: 22px; height: 22px; border-radius: 50%; background: var(--tile); display: grid; place-items: center; font: 600 11px/1 var(--sans); color: var(--ink-nav); }
+.opt .otext { flex: 1; min-width: 0; font: 400 13px/20px var(--sans); color: var(--ink-title); overflow-wrap: anywhere; padding-top: 1px; }
+.opt .tick { flex: none; width: 18px; height: 18px; margin-top: 2px; opacity: 0; }
+.opt.is-correct { box-shadow: 0 0 0 2px var(--blue); }
+.opt.is-correct .lbl { background: var(--blue); color: var(--paper); }
+.opt.is-correct .tick { opacity: 1; }
+.opt.is-alt { box-shadow: 0 0 0 1px var(--orange); }
+.notes { display: flex; flex-direction: column; gap: 6px; }
+.note { display: flex; align-items: flex-start; gap: 8px; font: 400 12px/19px var(--sans); color: var(--ink-title); background: var(--tile); border-radius: var(--radius-small); padding: 6px 10px; }
+.note::before { content: ""; flex: none; width: 6px; height: 6px; margin-top: 7px; border-radius: 50%; background: var(--orange); }
+.note.info::before { background: var(--ink-faint); }
+.note.claude::before { background: var(--blue); }
+.note span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.qfoot { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.edit-field { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-small); background: var(--paper); padding: 6px 8px; font: 400 13px/20px var(--sans); }
+textarea.edit-field { resize: vertical; min-height: 60px; font-weight: 500; }
+.edit-opts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
+.edit-opt { display: flex; gap: 8px; align-items: center; }
+.edit-opt .lbl { flex: none; width: 22px; text-align: center; font: 600 11px/1 var(--sans); color: var(--ink-nav); }
+.empty { background: var(--card); border-radius: var(--radius-card); padding: 28px 14px; text-align: center; color: var(--ink-body); font-size: 13px; }
+
+/* Script */
+.settings { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 14px; }
+@media (max-width: 640px) { .settings { grid-template-columns: minmax(0, 1fr); } }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field.wide { grid-column: 1 / -1; }
+.field label, .field .lab { font: 500 12px/18px var(--sans); color: var(--ink-nav); }
+.field input[type="text"], .field input[type="number"], .field textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-button); background: var(--paper); padding: 7px 10px; font: 400 13px/20px var(--sans); color: var(--ink); }
+.field textarea { resize: vertical; min-height: 60px; }
+.checks { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 6px 14px; }
+.check { display: flex; align-items: center; gap: 8px; font: 400 13px/20px var(--sans); color: var(--ink-title); cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--ink-button); margin: 0; flex: none; }
+/* Google Forms through the connector */
+.make-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.conn { display: inline-flex; align-items: center; gap: 6px; font: 400 12px/19px var(--sans); color: var(--ink-body); min-width: 0; overflow-wrap: anywhere; }
+.conn::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--ink-faint); }
+.conn.ok::before { background: var(--blue); }
+.conn.error { color: var(--warn-ink); }
+.conn.error::before { background: var(--orange); }
+.make-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.make-status { font: 400 13px/20px var(--sans); color: var(--ink-body); min-width: 0; overflow-wrap: anywhere; }
+.make-status.error { color: var(--warn-ink); }
+.made { display: flex; flex-direction: column; gap: 8px; padding: 14px; }
+.made-title { margin: 0; font: 500 20px/26px var(--serif); letter-spacing: -0.01em; color: var(--ink); overflow-wrap: anywhere; }
+.made-meta { font: 400 12px/19px var(--sans); color: var(--ink-body); font-variant-numeric: tabular-nums; }
+.linkrow { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--paper); border-radius: var(--radius-button); padding: 10px 12px; box-shadow: 0 0 0 1px var(--line); }
+@media (max-width: 560px) { .linkrow { grid-template-columns: minmax(0, 1fr); } }
+.linkrow-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.linkrow-label { font: 500 13px/20px var(--sans); color: var(--ink); }
+.linkrow-url { font: 500 12px/19px var(--mono); color: var(--blue-ink); text-decoration: underline; text-decoration-color: #c5d5f7; text-underline-offset: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.linkrow-hint { font: 400 12px/19px var(--sans); color: var(--ink-body); }
+.linkrow-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.setup { display: flex; flex-direction: column; gap: 12px; }
+.setup p { margin: 0; font: 400 13px/20px var(--sans); color: var(--ink-title); max-width: 60ch; }
+.recent { display: flex; flex-direction: column; gap: 6px; }
+.recent-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; background: var(--paper); border-radius: var(--radius-button); padding: 8px 12px; box-shadow: 0 0 0 1px var(--line); }
+@media (max-width: 560px) { .recent-row { grid-template-columns: minmax(0, 1fr); } }
+.recent-row .t { font: 500 13px/20px var(--sans); color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-row .m { grid-column: 1; font: 400 12px/18px var(--sans); color: var(--ink-body); font-variant-numeric: tabular-nums; }
+.recent-row .l { grid-row: 1 / span 2; grid-column: 2; display: flex; gap: 14px; }
+@media (max-width: 560px) { .recent-row .l { grid-row: auto; grid-column: 1; } }
+.recent-row a { font: 500 12px/19px var(--sans); color: var(--blue-ink); text-underline-offset: 3px; }
+.recent-empty { font: 400 12px/19px var(--sans); color: var(--ink-body); padding: 0 4px; }
+.warnbar { font: 400 13px/20px var(--sans); color: var(--warn-ink); background: var(--paper); border-radius: var(--radius-button); padding: 8px 12px; box-shadow: 0 0 0 1px #f3c9a8; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 10px; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; font: 400 13px/20px var(--sans); color: var(--ink-title); }
+.steps li::before { content: counter(s); width: 22px; height: 22px; border-radius: 50%; background: var(--paper); box-shadow: var(--shadow-tab); display: grid; place-items: center; font: 600 11px/1 var(--sans); color: var(--ink); margin-top: -1px; }
+.steps b { font-weight: 500; color: var(--ink); }
+.steps code { font: 500 12px/20px var(--mono); color: var(--ink); background: var(--tile); border-radius: 4px; padding: 0 4px; }
+.card-title { margin: 0; font: 500 14px/20px var(--sans); color: var(--ink); }
+
+footer { border-top: 1px solid var(--line); padding-top: 18px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font: 400 12px/19px var(--sans); color: var(--ink-body); }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink-button); color: var(--paper); border-radius: 999px; padding: 8px 16px; font: 500 13px/20px var(--sans); box-shadow: var(--shadow-float); z-index: 20; max-width: calc(100% - 32px); text-align: center; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="bar">
+    <div class="brand">
+      <svg viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="6" fill="#181614"/><circle cx="7" cy="8" r="1.8" fill="none" stroke="#fffffd" stroke-width="1.3"/><circle cx="7" cy="14" r="1.8" fill="#4078e8"/><rect x="11" y="7.3" width="6" height="1.4" rx=".7" fill="#fffffd"/><rect x="11" y="13.3" width="6" height="1.4" rx=".7" fill="#fffffd"/></svg>
+      MCQ Form Builder
+    </div>
+    <div class="bar-note">Your paper is read in this browser. Only the finished quiz is sent, when you make the form.</div>
+  </header>
+
+  <div class="head">
+    <h1>Question paper in.<span class="soft">Google Form out.</span></h1>
+    <p class="lede">Drop a Word or text file with numbered questions, options and an answer key. Check the answers here, then make the graded quiz in your Google account with one click.</p>
+  </div>
+
+  <section aria-label="Question paper">
+    
+    <div class="card">
+      <div class="drop panel" id="drop">
+        <div class="drop-text">
+          <div class="drop-title">Drop a question paper here</div>
+          <div class="drop-sub">.docx or .txt, in English or Marathi. PDFs need saving as .docx first.</div>
+        </div>
+        <div class="drop-actions">
+          <button class="btn btn-primary" id="pick" type="button">Choose file</button>
+          <button class="btn btn-grey" id="paste-toggle" type="button">Paste text</button>
+        </div>
+        <input id="file" type="file" accept=".docx,.txt,.md,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+      </div>
+      <div class="paste panel" id="paste" hidden>
+        <textarea id="paste-text" placeholder="Q1. Which sentence is in the simple present tense?&#10;A) She is playing the piano.&#10;B) They walk to school every day.&#10;...&#10;&#10;ANSWER KEY:&#10;1. B"></textarea>
+        <div class="paste-row">
+          <button class="btn btn-grey" id="paste-cancel" type="button">Cancel</button>
+          <button class="btn btn-primary" id="paste-go" type="button">Read this text</button>
+        </div>
+      </div>
+      <div class="status" id="status" aria-live="polite"></div>
+      <div class="formats" aria-label="What the reader understands">
+        <div class="fmt"><code>Q1.  1.  १.  प्रश्न १.</code><span>Question numbering</span></div>
+        <div class="fmt"><code>A)  (b)  अ)  ड)</code><span>Options, one per line or on one line</span></div>
+        <div class="fmt"><code>1. B   प्रश्न 1: उत्तर: क)</code><span>Answer key at the end</span></div>
+        <div class="fmt"><code>*C)  ✓</code><span>Answers marked in the options</span></div>
+        <div class="fmt"><code>Section A:  १. पाठ</code><span>Section and lesson headings</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="rev-h">
+    <div class="head">
+      <h2 id="rev-h">Check the answers.<span class="soft" id="rev-soft">All set.</span></h2>
+      <div class="summary" id="summary"></div>
+    </div>
+    <div class="toolbar">
+      <div class="tabs" role="tablist" aria-label="Show">
+        <button class="tab" role="tab" id="tab-all" aria-selected="true" type="button">All</button>
+        <button class="tab" role="tab" id="tab-flag" aria-selected="false" type="button">Needs a look</button>
+      </div>
+      <div class="ask" id="ask">
+        <button class="btn btn-primary" id="ask-go" type="button">Fill missing answers with Claude</button>
+        <button class="btn btn-grey" id="check-go" type="button">Double-check the key with Claude</button>
+        <button class="btn btn-grey" id="ask-stop" type="button" hidden>Stop</button>
+        <span class="ask-status" id="ask-status"></span>
+      </div>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section aria-labelledby="sc-h">
+    <div class="head">
+      <h2 id="sc-h">Make the form.<span class="soft">Straight into Google Forms.</span></h2>
+    </div>
+    <div class="card">
+      <h3 class="card-title">Form settings</h3>
+      <div class="settings">
+        <div class="field wide"><label for="s-title">Form title</label><input id="s-title" type="text"></div>
+        <div class="field wide"><label for="s-desc">Description</label><textarea id="s-desc" rows="2"></textarea></div>
+        <div class="field"><label for="s-points">Marks per question</label><input id="s-points" type="number" min="0" max="100" value="1"></div>
+        <div class="field"><label for="s-confirm">Message after submitting</label><input id="s-confirm" type="text"></div>
+        <div class="field wide">
+          <span class="lab">Options</span>
+          <div class="checks">
+            <label class="check"><input id="s-student" type="checkbox" checked>Ask for name and roll number</label>
+            <label class="check"><input id="s-letters" type="checkbox" checked>Keep option letters (A, B, अ, ब)</label>
+            <label class="check"><input id="s-headings" type="checkbox" checked>Show section and lesson headings</label>
+            <label class="check"><input id="s-pages" type="checkbox">Put each section on its own page</label>
+            <label class="check"><input id="s-shuffle" type="checkbox">Shuffle question order for each student</label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="make-head">
+        <h3 class="card-title">Google Forms</h3>
+        <span class="conn" id="conn" aria-live="polite">Checking the MCQ Form Builder connector...</span>
+      </div>
+      <div class="warnbar" id="warn" hidden></div>
+      <div class="make-row">
+        <button class="btn btn-primary" id="make" type="button" disabled>Make the Google Form</button>
+        <span class="make-status" id="make-status" aria-live="polite"></span>
+      </div>
+      <div class="made panel" id="made" hidden></div>
+      <div class="setup" id="setup" hidden>
+        <p id="setup-lede">To make forms from here, add MCQ Form Builder as a connector in Claude. You only do this once.</p>
+        <div class="linkrow">
+          <div class="linkrow-text">
+            <span class="linkrow-label">Connector URL</span>
+            <span class="linkrow-url" id="connector-url">https://mcq-formbuilder.vercel.app/mcp</span>
+          </div>
+          <div class="linkrow-actions"><button class="btn btn-grey" id="connector-copy" type="button">Copy</button></div>
+        </div>
+        <ol class="steps">
+          <li><span>In Claude, open <b>Settings</b>, then <b>Connectors</b>, and choose <b>Add custom connector</b>.</span></li>
+          <li><span>Name it <code>MCQ Form Builder</code> exactly and paste the URL above.</span></li>
+          <li><span>Click <b>Connect</b>, sign in with your Google account and choose <b>Allow</b>.</span></li>
+          <li><span>Come back here and press <b>Make the Google Form</b>.</span></li>
+        </ol>
+      </div>
+    </div>
+    <div class="card" id="recent-card" hidden>
+      <div class="make-head">
+        <h3 class="card-title">Your recent forms</h3>
+        <button class="link" id="recent-load" type="button" hidden>Show my recent forms</button>
+      </div>
+      <div class="recent" id="recent"></div>
+    </div>
+    <div class="card">
+      <h3 class="card-title">After it's made</h3>
+      <ol class="steps">
+        <li><span>Open the <b>Edit link</b>, then <b>Settings</b>, then <b>Quizzes</b>, and turn on <b>Correct answers</b> and <b>Point values</b> so students see their score after submitting.</span></li>
+        <li><span>Send students the <b>Student link</b>. Each press of the button makes a new form, so make it once.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <footer>
+    <span>Questions with one correct option each. Grading is set when the form is made.</span>
+    <span>Google Forms has no timer, so a time limit stays in the description.</span>
+  </footer>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+/* MCQ Form Builder core: paper text to quiz model, quiz model to the form payload. */
+var MCQ = (function () {
+  var DEV_DIGITS = '०१२३४५६७८९';
+  var LABEL_SETS = [
+    ['A', 'B', 'C', 'D', 'E', 'F'],
+    ['a', 'b', 'c', 'd', 'e', 'f'],
+    ['अ', 'ब', 'क', 'ड', 'इ'],
+    ['अ', 'ब', 'स', 'द', 'इ']
+  ];
+  var LBL = '[A-Fa-f]|अ|ब|क|ड|स|द|इ';
+  var OPT_START = new RegExp('^(\\*?)\\s*[\\(\\[]?\\s*(' + LBL + ')\\s*[\\)\\]](?:\\s+|$)(.*)$');
+  var OPT_START_DOT = /^(\*?)\s*([A-Fa-f])\.\s+(.+)$/;
+  var OPT_SPLIT = new RegExp('\\s+(\\*?)[\\(\\[]?(' + LBL + ')[\\)\\]]\\s+', 'g');
+  var NUM_LINE = /^(?:(Q(?:uestion|ue)?|प्रश्ना|प्रश्न|प्र)\s*\.?\s*)?(\d{1,3})\s*[.):\-]\s*(.+)$/i;
+  var NUM_LINE_Q = /^(Q(?:uestion|ue)?|प्रश्ना|प्रश्न|प्र)\s*\.?\s*(\d{1,3})\s*[.):\-]?\s+(.+)$/i;
+  var SECTION = /^(section|part|विभाग|भाग)\s*[-:]?\s*([A-Z]|[IVX]{1,4}|\d{1,2})\b/i;
+  var KEY_HEAD = /(answer\s*key|answer\s*sheet|answers\s*:?\s*$|उत्तरपत्रिका|उत्तर\s*पत्रिका|उत्तरसूची|उत्तर\s*सूची|उत्तरतालिका)/i;
+  var SEPARATOR = /^[\s\-_=*~—–•·.]{3,}$/;
+  var KEY_ITEM = new RegExp('(?:^|[^\\d])(\\d{1,3})\\s*[.):\\-]?\\s*(?:(?:उत्तर|answer|ans)\\s*[:.\\-]?\\s*)?[\\(\\[]?\\s*(' + LBL + ')\\s*(?=[\\)\\].,:;\\s|]|$)', 'gi');
+  var CORRECT_MARK = /\s*(?:\(\s*correct\s*\)|\[\s*correct\s*\]|✓|✔|✅|\(\s*बरोबर\s*\))\s*/i;
+
+  function toAscii(s) { return s.replace(/[०-९]/g, function (d) { return String(DEV_DIGITS.indexOf(d)); }); }
+  function squash(s) { return s.replace(/[ \t ]+/g, ' ').trim(); }
+  function normKey(s) { return s.replace(/\s+/g, '').toLowerCase(); }
+
+  function splitLines(text) {
+    return text.replace(/\r\n?/g, '\n').split('\n');
+  }
+
+  /* Read word/document.xml (a parsed XML Document) into lines; underlined runs are wrapped in « ». */
+  function docxToLines(doc) {
+    var W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    var body = doc.getElementsByTagNameNS(W, 'body')[0] || doc;
+    var paras = body.getElementsByTagNameNS(W, 'p');
+    var out = [];
+    for (var i = 0; i < paras.length; i++) {
+      var p = paras[i];
+      var runs = p.getElementsByTagNameNS(W, 'r');
+      var text = '', inU = false;
+      for (var j = 0; j < runs.length; j++) {
+        var r = runs[j];
+        var u = false;
+        var rPr = r.getElementsByTagNameNS(W, 'rPr')[0];
+        if (rPr) {
+          var ue = rPr.getElementsByTagNameNS(W, 'u')[0];
+          if (ue) { var v = ue.getAttributeNS(W, 'val') || ue.getAttribute('w:val') || 'single'; u = v !== 'none'; }
+        }
+        var piece = '';
+        for (var k = 0; k < r.childNodes.length; k++) {
+          var c = r.childNodes[k];
+          if (c.localName === 't') piece += c.textContent;
+          else if (c.localName === 'tab') piece += '\t';
+          else if (c.localName === 'br' || c.localName === 'cr') piece += '\n';
+        }
+        if (!piece) continue;
+        if (u && piece.trim() && !inU) { text += '«'; inU = true; }
+        if (!u && inU) { text += '»'; inU = false; }
+        text += piece;
+      }
+      if (inU) text += '»';
+      text = text.replace(/«(\s*)/g, '$1«').replace(/(\s*)»/g, '»$1');
+      out.push.apply(out, text.split('\n'));
+    }
+    return out;
+  }
+
+  function parseOptionsLine(line) {
+    var m = line.match(OPT_START) || line.match(OPT_START_DOT);
+    if (!m) return null;
+    var first = { label: m[2], text: m[3], star: !!m[1] };
+    var rest = first.text;
+    var opts = [first];
+    var set = LABEL_SETS.filter(function (s) { return s.indexOf(first.label) >= 0; });
+    var pieces = [], re = new RegExp(OPT_SPLIT.source, 'g'), mm, last = 0, found = [];
+    while ((mm = re.exec(' ' + rest)) !== null) found.push({ idx: mm.index, len: mm[0].length, star: !!mm[1], label: mm[2] });
+    var padded = ' ' + rest, prevLabel = first.label, accepted = [];
+    for (var i = 0; i < found.length; i++) {
+      var f = found[i];
+      var ok = set.some(function (s) { return s.indexOf(f.label) === s.indexOf(prevLabel) + 1; });
+      if (ok) { accepted.push(f); prevLabel = f.label; }
+    }
+    if (accepted.length) {
+      first.text = padded.slice(1, accepted[0].idx);
+      for (var a = 0; a < accepted.length; a++) {
+        var start = accepted[a].idx + accepted[a].len;
+        var end = a + 1 < accepted.length ? accepted[a + 1].idx : padded.length;
+        opts.push({ label: accepted[a].label, text: padded.slice(start, end), star: accepted[a].star });
+      }
+    }
+    opts.forEach(function (o) {
+      o.text = squash(o.text);
+      if (/\*\s*$/.test(o.text)) { o.star = true; o.text = o.text.replace(/\s*\*+\s*$/, ''); }
+      if (CORRECT_MARK.test(o.text)) { o.star = true; o.text = squash(o.text.replace(CORRECT_MARK, ' ')); }
+      o.text = o.text.replace(/^\|+\s*/, '').replace(/[«»]/g, '');
+    });
+    return opts;
+  }
+
+  function classify(raw) {
+    var line = squash(raw);
+    if (!line) return { t: 'blank' };
+    if (SEPARATOR.test(line)) return { t: 'blank' };
+    var a = toAscii(line);
+    if (SECTION.test(a.replace(/[«»]/g, ''))) return { t: 'section', text: line.replace(/[«»]/g, '') };
+    var opts = parseOptionsLine(line);
+    if (opts) return { t: 'opts', opts: opts };
+    var m = a.match(NUM_LINE_Q) || a.match(NUM_LINE);
+    if (m) {
+      var prefixLen = a.length - m[3].length;
+      return { t: 'num', explicit: !!m[1], n: parseInt(m[2], 10), text: line.slice(prefixLen).trim(), raw: line };
+    }
+    return { t: 'text', text: line };
+  }
+
+  function cleanTitle(s) {
+    return s.replace(/[«»*]/g, '').replace(/^[^\p{L}\p{N}('"]+/u, '').trim();
+  }
+
+  function parse(lines) {
+    var keyAt = -1;
+    for (var i = 0; i < lines.length; i++) {
+      var s = squash(lines[i]);
+      if (s && s.length < 80 && KEY_HEAD.test(s) && i > 2) { keyAt = i; break; }
+    }
+    var bodyLines = keyAt >= 0 ? lines.slice(0, keyAt) : lines;
+    var keyText = keyAt >= 0 ? toAscii(lines.slice(keyAt + 1).join('\n')) : '';
+
+    var cls = bodyLines.map(classify).filter(function (c) { return c.t !== 'blank'; });
+    var header = [], items = [], cur = null, lastSection = null, sinceSection = false, seenAny = false;
+    for (var c = 0; c < cls.length; c++) {
+      var L = cls[c];
+      if (L.t === 'section') {
+        lastSection = { section: L.text, help: '' }; items.push(lastSection); cur = null; sinceSection = true; seenAny = true; continue;
+      }
+      if (L.t === 'num') {
+        var j = c + 1;
+        while (j < cls.length && cls[j].t === 'text') j++;
+        var isQ = L.explicit || (j < cls.length && cls[j].t === 'opts');
+        if (isQ) {
+          cur = { n: L.n, q: L.text, opts: [] }; items.push(cur); sinceSection = false; seenAny = true;
+        } else {
+          lastSection = { section: L.raw.replace(/[«»]/g, ''), help: '' }; items.push(lastSection); cur = null; sinceSection = true; seenAny = true;
+        }
+        continue;
+      }
+      if (L.t === 'opts') {
+        if (cur) cur.opts = cur.opts.concat(L.opts);
+        continue;
+      }
+      if (L.t === 'text') {
+        if (cur && !cur.opts.length) cur.q += ' ' + L.text;
+        else if (lastSection && sinceSection) lastSection.help = squash((lastSection.help + ' ' + L.text.replace(/^\((.*)\)$/, '$1')).replace(/[«»]/g, ''));
+        else if (!seenAny) header.push(L.text);
+      }
+    }
+
+    var questions = items.filter(function (it) { return it.q !== undefined; });
+    var nums = questions.map(function (q) { return q.n; });
+    var uniqueNums = new Set(nums).size === nums.length;
+
+    var key = {};
+    if (keyText) {
+      var re = new RegExp(KEY_ITEM.source, 'gi'), m;
+      while ((m = re.exec(keyText)) !== null) {
+        var n = parseInt(m[1], 10);
+        if (!(n in key)) key[n] = m[2];
+        re.lastIndex = m.index + m[0].length;
+      }
+    }
+    var keyCount = Object.keys(key).length;
+
+    questions.forEach(function (q, idx) {
+      q.flags = [];
+      var words = [];
+      q.q = squash(q.q.replace(/«([^»]*)»/g, function (_, w) { var t = w.trim(); if (t) words.push(t); return '"' + t + '"'; })).replace(/""/g, '"');
+      q.word = words.join(', ');
+      var seen = {}, opts = [], removed = [], remap = {};
+      q.opts.forEach(function (o, oi) {
+        var k = normKey(o.text);
+        if (k in seen) { removed.push(o); remap[oi] = seen[k]; return; }
+        seen[k] = opts.length; remap[oi] = opts.length; opts.push(o);
+      });
+      var labels = q.opts.map(function (o) { return o.label; });
+      q.options = opts.map(function (o) { return { label: o.label, text: o.text }; });
+
+      var keyNum = uniqueNums ? q.n : idx + 1;
+      var keyLabel = key[keyNum];
+      var keyIdx = -1;
+      if (keyLabel) {
+        var li = labels.indexOf(keyLabel);
+        if (li < 0) li = labels.map(function (l) { return l.toLowerCase(); }).indexOf(keyLabel.toLowerCase());
+        if (li < 0) {
+          LABEL_SETS.forEach(function (s) { if (li < 0 && s.indexOf(keyLabel) >= 0 && s.indexOf(keyLabel) < labels.length) li = s.indexOf(keyLabel); });
+        }
+        if (li >= 0) keyIdx = remap[li];
+      }
+      var starIdx = -1;
+      q.opts.forEach(function (o, oi) { if (o.star && starIdx < 0) starIdx = remap[oi]; });
+
+      if (keyIdx >= 0) {
+        q.answer = keyIdx; q.source = 'key';
+        if (starIdx >= 0 && starIdx !== keyIdx) q.flags.push({ t: 'conflict', alt: starIdx });
+      } else if (starIdx >= 0) {
+        q.answer = starIdx; q.source = 'mark';
+        if (keyCount) q.flags.push({ t: 'nokey' });
+      } else {
+        q.answer = -1; q.source = 'none';
+        q.flags.push({ t: 'noanswer' });
+      }
+      if (removed.length) q.flags.push({ t: 'dupe', texts: removed.map(function (o) { return o.label + ') ' + o.text; }) });
+      if (q.options.length < 2) q.flags.push({ t: 'few' });
+      var odd = new RegExp('[\\u3040-\\u30ff\\u3400-\\u9fff\\uac00-\\ud7af\\u0400-\\u04ff\\u0600-\\u06ff\\ufffd]');
+      if (odd.test(q.q) || q.options.some(function (o) { return odd.test(o.text); })) q.flags.push({ t: 'odd' });
+      delete q.opts;
+    });
+
+    var title = header.length ? cleanTitle(header[0]) : '';
+    var description = header.slice(1).map(function (h) { return h.replace(/[«»*]/g, '').trim(); }).filter(Boolean).join('\n');
+    var out = items.map(function (it) {
+      if (it.q === undefined) return { section: it.section.replace(/\*/g, ''), help: it.help };
+      return { n: it.n, q: it.q, word: it.word, options: it.options, answer: it.answer, source: it.source, flags: it.flags };
+    });
+    return { title: title, description: description, items: out, keyFound: keyAt >= 0, keyCount: keyCount };
+  }
+
+  function needsLook(q) {
+    return q.flags.some(function (f) { return f.t !== 'reviewed'; }) && !q.reviewed;
+  }
+
+  function isMarathi(s) { return /[ऀ-ॿ]/.test(s); }
+
+  function buildPayload(model, st) {
+    var items = [];
+    model.items.forEach(function (it) {
+      if (it.section !== undefined) {
+        if (st.headings) items.push({ section: it.section, help: it.help || '' });
+        return;
+      }
+      var opts = it.options.map(function (o) { return st.keepLetters ? o.label + ') ' + o.text : o.text; });
+      var q = { q: it.q, options: opts, answer: it.answer };
+      if (it.word) q.word = it.word;
+      items.push(q);
+    });
+    var mr = isMarathi(st.title + model.items.map(function (i) { return i.q || ''; }).join(''));
+    return {
+      title: st.title, description: st.description,
+      points: Math.max(0, parseInt(st.points, 10) || 0),
+      student: !!st.student, pages: !!st.pages, shuffle: !!st.shuffle, confirm: st.confirm,
+      nameLabel: mr ? 'विद्यार्थ्याचे नाव (Student Name)' : 'Student Name',
+      rollLabel: mr ? 'हजेरी क्रमांक (Roll No.)' : 'Roll No.',
+      wordLabel: mr ? 'अधोरेखित शब्द (Underlined word): ' : 'Underlined word: ',
+      items: items
+    };
+  }
+
+  return { buildPayload: buildPayload, parse: parse, splitLines: splitLines, docxToLines: docxToLines, needsLook: needsLook, isMarathi: isMarathi };
+})();
+if (typeof module !== 'undefined') module.exports = MCQ;
+
+</script>
+<script>
+(function () {
+  var EXAMPLE = "STD 6 TENSE QUIZ (20 MARKS)\n\nQ1. Which of the following sentences is in the simple present tense?\nA) She is playing the piano.\nB) They walk to school every day.\nC) He will visit his grandmother tomorrow.\nD) I ate an apple.\n\nQ2. Identify the verb in the simple past tense in this sentence: \"The dog barked at the stranger.\"\nA) The\nB) barked\nC) stranger\nD) dog\n\nQ3. Choose the correct simple future tense form to complete the sentence: \"We ________ to the zoo next Sunday.\"\nA) will go\nB) went\nC) goes\nD) are going\n\nQ4. Which sentence is written in the present continuous tense?\nA) Mother cooks dinner.\nB) Mother cooked dinner.\nC) Mother is cooking dinner.\nD) Mother will cook dinner.\n\nQ5. Complete the sentence with the correct past continuous form: \"When I entered the room, the children ________.\"\nA) sleep\nB) were sleeping\n*C) slept\nD) are sleeping\n\nQ6. Fill in the blank with the correct simple present form: \"The sun ________ in the east.\"\nA) rise\nB) rose\nC) rises\nD) is rising\n\nQ7. What is the simple past tense of the irregular verb \"write\"?\nA) written\nB) writing\nC) writes\nD) wrote\n\nQ8. Identify the correct present continuous form for the pronoun \"I\" and verb \"read\".\nA) I am reading\nB) I is reading\nC) I are reading\nD) I readed\n\nQ9. Which of the following sentences is in the past continuous tense?\nA) They played football in the rain.\nB) They are playing football in the rain.\nC) They were playing football in the rain.\nD) They will play football in the rain.\n\nQ10. Which word tells you that a sentence is in the simple future tense?\nA) did\nB) will\nC) is\n*D) was\n\nQ11. Choose the correct form: \"My friends ________ football every evening.\"\nA) plays\nB) played\nC) play\nD) playing\n\nQ12. Convert this sentence into the simple past tense: \"She sings a sweet song.\"\nA) She sang a sweet song.\nB) She sings a sweet song.\nC) She will sing a sweet song.\nD) She is singing a sweet song.\n\nQ13. When do we use the present continuous tense (am/is/are + verb-ing)?\nA) For actions happening right now at the moment of speaking\nB) For habits that happened yesterday\nC) For permanent universal truths\nD) For actions completed long ago\n\nQ14. Fill in the blank: \"At 8 o'clock last night, it ________ heavily.\"\nA) rains\nB) is raining\nC) rained\nD) was raining\n\nQ15. Complete the sentence: \"I hope you ________ pass the exam.\"\nA) will\nB) did\nC) do\nD) are\n\nQ16. Identify the sentence that shows correct subject-verb agreement in the simple present tense.\nA) The cat catch mice.\nB) The boys reads a book.\nC) The baby cries at night.\nD) Birds flies high.\n\nQ17. What is missing in this present continuous sentence? \"He ________ watching TV.\"\nA) am\nB) are\nC) is\nD) be\n\nQ18. What is the simple past tense of the irregular verb \"go\"?\nA) goed\nB) went\nC) gone\nD) going\n\nQ19. Which sentence refers to an action that will happen in the future?\nA) I cleaned my room.\nB) I am cleaning my room.\nC) I clean my room.\nD) I will clean my room tomorrow.\n\nQ20. Which helping verbs are used to form the past continuous tense?\nA) is / are\nB) do / does\n*C) will / shall\nD) was / were\n\nANSWER KEY:\n1. B\n2. B\n3. A\n4. C\n5. B\n6. C\n7. D\n8. A\n9. C\n10. B\n11. C\n12. A\n13. A\n14. D\n15. A\n16. C\n17. C\n18. B\n19. D\n20. D\n";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { model: null, fileName: '', example: false, filter: 'all', editing: {} };
+  var sample = null, askCtl = null;
+
+  var FLAG_TEXT = {
+    conflict: 'Key vs * mark', noanswer: 'No answer', nokey: 'From * mark', dupe: 'Repeated option',
+    few: 'Too few options', odd: 'Unusual characters', suggested: 'Filled by Claude', disagree: 'Claude disagrees' 
+  };
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function toast(msg) { var t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(function () { t.hidden = true; }, 2600); }
+  function questions() { return state.model ? state.model.items.filter(function (i) { return i.q !== undefined; }) : []; }
+  var INFO_FLAGS = ['suggested', 'nokey'];
+  function flagged(q) { return !q.reviewed && q.flags.some(function (f) { return INFO_FLAGS.indexOf(f.t) < 0; }); }
+  function optName(q, i) { var o = q.options[i]; return o ? o.label + ') ' + o.text : ''; }
+
+  function setStatus(parts, error) {
+    var s = $('status'); s.textContent = ''; s.className = 'status' + (error ? ' error' : '');
+    parts.forEach(function (p) { s.append(p); });
+  }
+
+  function loadModel(model, name, isExample) {
+    if (!model.items.some(function (i) { return i.q !== undefined; })) {
+      setStatus(['No questions found in ' + name + '. Each question needs a number (1. or Q1.) and options labelled A) to D) or अ) to ड).'], true);
+      return;
+    }
+    state.model = model; state.fileName = name; state.example = !!isExample; state.editing = {}; state.filter = 'all';
+    var mr = MCQ.isMarathi(model.title + model.description);
+    $('s-title').value = model.title || name.replace(/\.[^.]+$/, '');
+    $('s-desc').value = model.description || '';
+    $('s-confirm').value = mr ? 'तुमची उत्तरे जमा झाली आहेत. निकाल पाहण्यासाठी "View score" वर क्लिक करा.' : 'Your answers have been submitted. Click "View score" to see your result.';
+    var qs = questions();
+    var chip = el('span', 'file-chip', name);
+    var parts = [chip];
+    if (isExample) { parts.push(el('span', 'example-tag', 'Example')); parts.push('A sample paper so you can see how it works. Drop your own to replace it.'); }
+    else parts.push('Found ' + qs.length + ' questions' + (model.keyFound ? ' and an answer key.' : '. No answer key found, so Claude will fill in the answers.'));
+    setStatus(parts, false);
+    state.checked = false; claudeNote('', false);
+    renderAll();
+    if (!isExample) autoFill();
+  }
+
+  function readFile(file) {
+    var name = file.name || 'paper';
+    var ext = (name.split('.').pop() || '').toLowerCase();
+    if (ext === 'pdf') { setStatus(["PDFs can't be read here. Open the PDF in Word or Google Docs, save it as .docx, or copy its text and use Paste text."], true); return; }
+    if (ext === 'doc') { setStatus(['Old .doc files can\'t be read here. Open it in Word and save as .docx, then drop it again.'], true); return; }
+    setStatus(['Reading ' + name + '...'], false);
+    if (ext === 'docx') {
+      if (!window.JSZip) { setStatus(["The Word reader didn't load. Check your connection and reload, or use Paste text."], true); return; }
+      JSZip.loadAsync(file).then(function (zip) {
+        var f = zip.file('word/document.xml');
+        if (!f) throw new Error('nodoc');
+        return f.async('string');
+      }).then(function (xml) {
+        var doc = new DOMParser().parseFromString(xml, 'application/xml');
+        loadModel(MCQ.parse(MCQ.docxToLines(doc)), name, false);
+      }).catch(function () {
+        setStatus([name + " couldn't be opened as a Word file. Save it again as .docx, or use Paste text."], true);
+      });
+    } else {
+      file.text().then(function (t) { loadModel(MCQ.parse(MCQ.splitLines(t)), name, false); })
+        .catch(function () { setStatus([name + " couldn't be read. Try Paste text instead."], true); });
+    }
+  }
+
+  /* Review list */
+  function renderSummary() {
+    var qs = questions();
+    var secs = state.model.items.filter(function (i) { return i.section !== undefined; }).length;
+    var flags = qs.filter(flagged).length;
+    var noAns = qs.filter(function (q) { return q.answer < 0; }).length;
+    var pts = Math.max(0, parseInt($('s-points').value, 10) || 0);
+    var s = $('summary'); s.textContent = '';
+    function add(n, label) { var sp = el('span'); var b = el('b', null, String(n)); sp.append(b, ' ' + label); s.append(sp); }
+    add(qs.length, qs.length === 1 ? 'question' : 'questions');
+    if (secs) add(secs, secs === 1 ? 'heading' : 'headings');
+    add(qs.length * pts, 'marks');
+    var byClaude = qs.filter(function (q) { return q.source === 'claude'; }).length;
+    if (byClaude) add(byClaude, 'filled by Claude');
+    add(flags, flags === 1 ? 'needs a look' : 'need a look');
+    $('rev-soft').textContent = flags ? (flags + (flags === 1 ? ' needs a look.' : ' need a look.')) : 'All set.';
+    $('tab-all').textContent = 'All ' + qs.length;
+    $('tab-flag').textContent = 'Needs a look ' + flags;
+    $('tab-all').setAttribute('aria-selected', state.filter === 'all');
+    $('tab-flag').setAttribute('aria-selected', state.filter === 'flag');
+    var answered = qs.filter(function (q) { return q.answer >= 0 && q.source !== 'claude'; }).length;
+    $('ask-go').hidden = !!askCtl || !sample || !noAns;
+    $('ask-go').textContent = 'Fill ' + (noAns === 1 ? 'the missing answer' : noAns + ' missing answers') + ' with Claude';
+    $('check-go').hidden = !!askCtl || !sample || !answered || state.checked;
+    $('ask-stop').hidden = !askCtl;
+    var st = $('ask-status');
+    if (!sample && !st.dataset.keep) st.textContent = claudeReady ? '' : 'Connecting to Claude...';
+    else if (sample && !askCtl && !st.dataset.keep) st.textContent = 'Claude answers on your Claude account. You can still change any answer.';
+    $('ask').hidden = !askCtl && $('ask-go').hidden && $('check-go').hidden && !st.textContent;
+  }
+
+  var TICK = '<svg class="tick" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="9" fill="#4078e8"/><path d="M5 9.3l2.6 2.5L13 6.5" fill="none" stroke="#fffffd" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  function noteFor(q, f) {
+    if (f.t === 'conflict') return { cls: '', text: 'The paper marks ' + optName(q, f.alt) + ' with *, but the answer key says ' + optName(q, q.answerKey != null ? q.answerKey : q.answer) + '. Using the answer key.' };
+    if (f.t === 'noanswer') return { cls: '', text: q.answer < 0 ? 'No answer found for this question. Tap the correct option.' : 'You picked this answer.' };
+    if (f.t === 'nokey') return { cls: 'info', text: 'Not in the answer key. Using the option marked with *.' };
+    if (f.t === 'dupe') return { cls: '', text: 'Removed a repeated option: ' + f.texts.join(', ') + '. Add a different one with Edit text if you want four.' };
+    if (f.t === 'few') return { cls: '', text: 'Fewer than two options were found. Fix it with Edit text.' };
+    if (f.t === 'odd') return { cls: '', text: 'Contains characters from another script, often a copy-paste slip. Check the spelling with Edit text.' };
+    if (f.t === 'suggested') return { cls: 'claude', text: 'Filled by Claude' + (f.why ? ': ' + f.why : '.') };
+    if (f.t === 'disagree') return { cls: '', text: 'Claude thinks the answer is ' + optName(q, f.pick) + (f.why ? ' (' + f.why + ')' : '') + '. The paper says ' + optName(q, q.answer) + '. Tap the right one.' };
+    return null;
+  }
+
+  function renderCard(q, idx, secName) {
+    var card = el('article', 'q' + (flagged(q) ? ' flagged' : ''));
+    card.id = 'q-' + idx;
+    var head = el('div', 'qhead');
+    head.append(el('span', 'qnum', String(q._no)));
+    if (secName) head.append(el('span', 'qsec', secName));
+    head.append(el('span', 'spacer'));
+    if (q.reviewed) head.append(el('span', 'chip ok', 'Checked'));
+    else q.flags.forEach(function (f) { if (FLAG_TEXT[f.t]) head.append(el('span', 'chip ' + (f.t === 'suggested' ? 'ok' : f.t === 'nokey' ? '' : 'warn'), FLAG_TEXT[f.t])); });
+    card.append(head);
+
+    var editing = !!state.editing[idx];
+    if (editing) {
+      var ta = el('textarea', 'edit-field'); ta.id = 'qt-' + idx; ta.value = q.q; ta.setAttribute('aria-label', 'Question text');
+      ta.addEventListener('input', function () { q.q = ta.value; scheduleMake(); });
+      card.append(ta);
+      var eo = el('div', 'edit-opts');
+      q.options.forEach(function (o, oi) {
+        var row = el('div', 'edit-opt'); row.append(el('span', 'lbl', o.label));
+        var inp = el('input', 'edit-field'); inp.type = 'text'; inp.id = 'qo-' + idx + '-' + oi; inp.value = o.text; inp.setAttribute('aria-label', 'Option ' + o.label);
+        inp.addEventListener('input', function () { o.text = inp.value; scheduleMake(); });
+        row.append(inp); eo.append(row);
+      });
+      card.append(eo);
+      var foot = el('div', 'qfoot');
+      var add = el('button', 'link', 'Add option'); add.type = 'button';
+      add.onclick = function () {
+        var used = q.options.map(function (o) { return o.label; });
+        var sets = [['A','B','C','D','E','F'],['a','b','c','d','e','f'],['अ','ब','क','ड','इ'],['अ','ब','स','द','इ']];
+        var set = sets.filter(function (s) { return used.every(function (u) { return s.indexOf(u) >= 0; }); })[0] || sets[0];
+        var next = set.filter(function (l) { return used.indexOf(l) < 0; })[0] || String(q.options.length + 1);
+        q.options.push({ label: next, text: '' });
+        q.flags = q.flags.filter(function (f) { return f.t !== 'few'; });
+        renderList(); var n = $('qo-' + idx + '-' + (q.options.length - 1)); if (n) n.focus();
+      };
+      var done = el('button', 'btn btn-paper', 'Done'); done.type = 'button';
+      done.onclick = function () {
+        q.options = q.options.filter(function (o, oi) { var keep = o.text.trim() !== ''; if (!keep && q.answer === oi) q.answer = -1; return keep; });
+        q.flags = q.flags.filter(function (f) { return f.t !== 'odd' && f.t !== 'dupe' && !(f.t === 'few' && q.options.length >= 2); });
+        delete state.editing[idx]; renderAll();
+      };
+      foot.append(done, add);
+      card.append(foot);
+      return card;
+    }
+
+    card.append(el('p', 'qtext', q.q));
+    if (q.word) { var w = el('p', 'qword', 'Underlined word: '); w.append(el('b', null, q.word)); card.append(w); }
+    var opts = el('div', 'opts');
+    var altF = q.flags.filter(function (f) { return f.t === 'conflict' || f.t === 'disagree'; })[0] || {};
+    var alt = altF.t === 'disagree' ? altF.pick : altF.alt;
+    q.options.forEach(function (o, oi) {
+      var b = el('button', 'opt' + (oi === q.answer ? ' is-correct' : '') + (!q.reviewed && oi === alt ? ' is-alt' : ''));
+      b.type = 'button'; b.setAttribute('aria-pressed', oi === q.answer);
+      b.setAttribute('aria-label', 'Option ' + o.label + ': ' + o.text + (oi === q.answer ? ', marked correct' : ''));
+      b.append(el('span', 'lbl', o.label), el('span', 'otext', o.text));
+      b.insertAdjacentHTML('beforeend', TICK);
+      b.onclick = function () {
+        q.answer = oi; q.reviewed = true; q.source = 'you';
+        q.flags = q.flags.filter(function (f) { return ['noanswer', 'suggested', 'conflict', 'disagree'].indexOf(f.t) < 0; });
+        renderAll(idx);
+      };
+      opts.append(b);
+    });
+    card.append(opts);
+
+    if (!q.reviewed) {
+      var notes = el('div', 'notes');
+      q.flags.forEach(function (f) { var n = noteFor(q, f); if (n) { var d = el('div', 'note ' + n.cls); d.append(el('span', null, n.text)); notes.append(d); } });
+      if (notes.childNodes.length) card.append(notes);
+    }
+    var foot2 = el('div', 'qfoot');
+    if (flagged(q) && q.answer >= 0) {
+      var ok = el('button', 'btn btn-paper', 'Looks right'); ok.type = 'button';
+      ok.onclick = function () { q.reviewed = true; renderAll(idx); };
+      foot2.append(ok);
+    }
+    var ed = el('button', 'link', 'Edit text'); ed.type = 'button';
+    ed.onclick = function () { state.editing[idx] = true; renderList(); var t = $('qt-' + idx); if (t) t.focus(); };
+    foot2.append(ed);
+    card.append(foot2);
+    return card;
+  }
+
+  function renderList(focusIdx) {
+    var list = $('list'); list.textContent = '';
+    var secName = '', no = 0, shown = 0, pendingSec = null;
+    state.model.items.forEach(function (it, idx) {
+      if (it.section !== undefined) {
+        secName = it.section.split(/[:(]/)[0].trim();
+        pendingSec = it;
+        if (state.filter === 'all') {
+          var row = el('div', 'sec-row'); row.append(el('h3', null, it.section));
+          if (it.help) row.append(el('p', null, it.help));
+          list.append(row); pendingSec = null;
+        }
+        return;
+      }
+      no++; it._no = no;
+      if (state.filter === 'flag' && !flagged(it)) return;
+      list.append(renderCard(it, idx, state.filter === 'flag' ? secName : ''));
+      shown++;
+    });
+    if (!shown) {
+      list.append(el('div', 'empty', state.filter === 'flag' ? 'Nothing needs a look. Every question has an answer.' : 'No questions yet.'));
+    }
+    if (focusIdx != null) {
+      var c = $('q-' + focusIdx);
+      var btn = c && c.querySelector('.opt.is-correct');
+      if (btn) btn.focus({ preventScroll: true });
+    }
+  }
+
+  function renderAll(focusIdx) { renderSummary(); renderList(focusIdx); renderMake(); }
+
+  /* Form settings */
+  var makeTimer = 0;
+  function scheduleMake() { clearTimeout(makeTimer); makeTimer = setTimeout(function () { renderMake(); renderSummary(); }, 200); }
+  function settings() {
+    return {
+      title: $('s-title').value.trim() || 'MCQ Test', description: $('s-desc').value,
+      points: $('s-points').value, confirm: $('s-confirm').value,
+      student: $('s-student').checked, keepLetters: $('s-letters').checked, headings: $('s-headings').checked,
+      pages: $('s-pages').checked, shuffle: $('s-shuffle').checked
+    };
+  }
+
+  /* Google Forms through the MCQ Form Builder connector */
+  var SERVER = 'MCQ Form Builder';
+  var mcp = null, making = false, watching = false, made = null;
+
+  function renderMake() {
+    if (!state.model) return;
+    var noAns = questions().filter(function (q) { return q.answer < 0; }).length;
+    var w = $('warn');
+    w.hidden = !noAns;
+    w.textContent = noAns ? (noAns === 1 ? '1 question still has no correct answer. It will be added without one and score 0 for everyone.' : noAns + ' questions still have no correct answer. They will be added without one and score 0 for everyone.') : '';
+    var b = $('make');
+    b.disabled = !mcp || making || !questions().length;
+    b.textContent = making ? 'Making the form...' : 'Make the Google Form';
+  }
+  function setConn(text, kind) { var c = $('conn'); c.textContent = text; c.className = 'conn' + (kind ? ' ' + kind : ''); }
+  function makeStatus(text, isError) { var m = $('make-status'); m.textContent = text; m.classList.toggle('error', !!isError); }
+  function showSetup(lede) { $('setup').hidden = false; if (lede) $('setup-lede').textContent = lede; }
+
+  function copyText(text, done, selectEl) {
+    function fallback() {
+      if (selectEl) { var r = document.createRange(); r.selectNodeContents(selectEl); var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+      toast('Selected. Press Ctrl+C to copy it.');
+    }
+    try { navigator.clipboard.writeText(text).then(function () { toast(done); }, fallback); } catch (e) { fallback(); }
+  }
+  function isHttps(u) { return typeof u === 'string' && /^https:\/\//.test(u); }
+
+  function linkRow(label, hint, url) {
+    var row = el('div', 'linkrow');
+    var text = el('div', 'linkrow-text');
+    text.append(el('span', 'linkrow-label', label));
+    var a = el('a', 'linkrow-url', isHttps(url) ? url.replace(/^https:\/\//, '') : 'Not available');
+    if (isHttps(url)) { a.href = url; a.target = '_blank'; a.rel = 'noopener'; }
+    text.append(a, el('span', 'linkrow-hint', hint));
+    var acts = el('div', 'linkrow-actions');
+    var cp = el('button', 'btn btn-grey', 'Copy'); cp.type = 'button'; cp.disabled = !isHttps(url);
+    cp.setAttribute('aria-label', 'Copy ' + label.toLowerCase());
+    cp.onclick = function () { copyText(url, label + ' copied.', a); };
+    acts.append(cp);
+    if (isHttps(url)) {
+      var open = el('a', 'btn btn-primary', 'Open in new tab');
+      open.href = url; open.target = '_blank'; open.rel = 'noopener';
+      open.setAttribute('aria-label', 'Open ' + label.toLowerCase() + ' in a new tab');
+      acts.append(open);
+    }
+    row.append(text, acts);
+    return row;
+  }
+
+  function renderMade(warnings) {
+    var box = $('made'); box.textContent = '';
+    if (!made) { box.hidden = true; return; }
+    box.append(el('h4', 'made-title', made.title));
+    box.append(el('span', 'made-meta', made.questionCount + (made.questionCount === 1 ? ' question' : ' questions') + ' · made just now in your Google Drive'));
+    box.append(linkRow('Edit link', 'For you: change questions, settings and see responses.', made.editUrl));
+    box.append(linkRow('Student link', 'Send this to students to take the quiz.', made.studentUrl || made.publishedUrl));
+    (warnings || []).forEach(function (t) { var n = el('div', 'note'); n.append(el('span', null, t)); box.append(n); });
+    box.hidden = false;
+  }
+
+  var dateFmt = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  function renderRecent(forms) {
+    var box = $('recent'); box.textContent = '';
+    $('recent-card').hidden = false; $('recent-load').hidden = true;
+    if (!forms.length) { box.append(el('div', 'recent-empty', 'No forms yet. The ones you make appear here.')); return; }
+    forms.forEach(function (f) {
+      var row = el('div', 'recent-row');
+      row.append(el('span', 't', f.title));
+      var meta = (f.status === 'created' ? f.questionCount + ' questions' : f.status === 'failed' ? 'Failed' : 'Being made') + (f.createdAt ? ' · ' + dateFmt.format(new Date(f.createdAt)) : '');
+      row.append(el('span', 'm', meta));
+      var links = el('span', 'l');
+      [['Edit', f.editUrl], ['Student link', f.studentUrl || f.publishedUrl]].forEach(function (pair) {
+        if (!isHttps(pair[1])) return;
+        var a = el('a', null, pair[0]); a.href = pair[1]; a.target = '_blank'; a.rel = 'noopener';
+        a.setAttribute('aria-label', pair[0] + ' for ' + f.title);
+        links.append(a);
+      });
+      row.append(links);
+      box.append(row);
+    });
+  }
+
+  /* One message per connector error code, each with the step that fixes it. */
+  function connectorError(e, forWrite) {
+    var code = e && e.code;
+    if (code === 'server_not_connected' || code === 'server_not_found') { showSetup(); setConn('Not connected in Claude', 'error'); return 'MCQ Form Builder isn\'t connected in Claude yet. Add it with the steps below, then press the button again.'; }
+    if (code === 'needs_reauth') { setConn('Reconnect needed', 'error'); return 'Your MCQ Form Builder connection expired. Reconnect it in Claude Settings, Connectors, then try again.'; }
+    if (code === 'selection_required') return 'You have more than one connector named MCQ Form Builder. Choose one when Claude asks, or rename the extra one.';
+    if (code === 'not_in_manifest') return 'MCQ Form Builder is turned off for this page. Turn it on from this page\'s Permissions menu.';
+    if (code === 'approval_required') return 'Claude needs your approval to use MCQ Form Builder here. Press the button again and choose Allow.';
+    if (code === 'blocked_by_policy') return 'Your organization doesn\'t allow the MCQ Form Builder connector.';
+    if (code === 'tool_error') {
+      var sc = e.result && e.result.structuredContent;
+      return (sc && sc.error && sc.error.message) || e.message || 'The form couldn\'t be made.';
+    }
+    if (code === 'not_granted' || code === 'capability_disabled' || code === 'capability_removed') return 'Making forms isn\'t available in this view. Open this page in Claude.';
+    if (forWrite && (code === 'server_unavailable' || code === 'upstream_error' || code === 'cancelled' || code === 'rate_limited'))
+      return 'MCQ Form Builder didn\'t answer in time, so the form may still have been made. Check Your recent forms before pressing again.';
+    if (code === 'server_unavailable') return 'MCQ Form Builder isn\'t answering right now. Try again in a minute.';
+    return 'Something went wrong with the connector' + (e && e.message ? ': ' + e.message : '.');
+  }
+
+  function startWatches() {
+    if (watching || !mcp) return;
+    watching = true;
+    mcp.watchTool(SERVER, 'get_account', null, function (ev) {
+      if (ev.type === 'data') {
+        var a = ev.result.payload || {};
+        if (a.readyToCreateForms) setConn('Connected as ' + a.email, 'ok');
+        else setConn(a.problem || 'Connected, but forms can\'t be made yet.', 'error');
+        return;
+      }
+      var code = ev.error && ev.error.code;
+      if (code === 'approval_required') setConn('Connector found. Claude asks for your approval the first time you make a form.');
+      else if (code === 'server_not_connected' || code === 'server_not_found' || code === 'needs_reauth') connectorError(ev.error);
+    });
+    mcp.watchTool(SERVER, 'list_google_forms', { limit: 5 }, function (ev) {
+      if (ev.type === 'data') { renderRecent((ev.result.payload || {}).forms || []); return; }
+      var code = ev.error && ev.error.code;
+      if (code === 'approval_required') { $('recent-card').hidden = false; $('recent-load').hidden = false; $('recent').textContent = ''; }
+      else if (['needs_reauth', 'server_not_connected', 'blocked_by_policy', 'not_in_manifest'].indexOf(code) >= 0) { $('recent').textContent = ''; $('recent-card').hidden = true; }
+    }, { refetchInterval: 120000 });
+  }
+
+  $('recent-load').onclick = function () {
+    if (!mcp) return;
+    mcp.callTool(SERVER, 'list_google_forms', { limit: 5 }).then(function (res) {
+      renderRecent((res.payload || {}).forms || []);
+      mcp.invalidate(SERVER).catch(function () {});
+    }, function (e) { toast(connectorError(e, false)); });
+  };
+
+  $('make').onclick = function () {
+    if (!mcp || making || !state.model) return;
+    var payload = MCQ.buildPayload(state.model, settings());
+    making = true; made = null; renderMade();
+    makeStatus('Making "' + payload.title + '" in your Google account. This takes a few seconds.', false);
+    renderMake();
+    mcp.callTool(SERVER, 'create_google_form', { payload: payload }).then(function (res) {
+      var out = res.payload || {};
+      if (!out.form || out.form.status !== 'created') throw { code: 'tool_error', message: (out.form && out.form.error) || 'The form wasn\'t made.' };
+      made = out.form;
+      renderMade(out.warnings);
+      makeStatus('', false);
+      toast('Form made. Both links are ready.');
+      mcp.invalidate(SERVER).catch(function () {});
+      startWatches();
+    }).catch(function (e) {
+      makeStatus(connectorError(e, true), true);
+    }).then(function () { making = false; renderMake(); });
+  };
+
+  $('connector-copy').onclick = function () { copyText($('connector-url').textContent, 'Connector URL copied.', $('connector-url')); };
+
+  ['s-title', 's-desc', 's-points', 's-confirm'].forEach(function (id) { $(id).addEventListener('input', scheduleMake); });
+  ['s-student', 's-letters', 's-headings', 's-pages', 's-shuffle'].forEach(function (id) { $(id).addEventListener('change', renderMake); });
+
+  /* Tabs */
+  $('tab-all').onclick = function () { state.filter = 'all'; renderSummary(); renderList(); };
+  $('tab-flag').onclick = function () { state.filter = 'flag'; renderSummary(); renderList(); };
+
+  /* Upload */
+  $('pick').onclick = function () { $('file').click(); };
+  $('file').onchange = function () { if (this.files[0]) readFile(this.files[0]); this.value = ''; };
+  var drop = $('drop');
+  ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (e) { var f = e.dataTransfer && e.dataTransfer.files[0]; if (f) readFile(f); });
+  document.addEventListener('dragover', function (e) { e.preventDefault(); });
+  document.addEventListener('drop', function (e) { e.preventDefault(); if (!drop.contains(e.target)) { var f = e.dataTransfer && e.dataTransfer.files[0]; if (f) readFile(f); } });
+  $('paste-toggle').onclick = function () { $('paste').hidden = false; $('paste-text').focus(); };
+  $('paste-cancel').onclick = function () { $('paste').hidden = true; };
+  $('paste-go').onclick = function () {
+    var t = $('paste-text').value;
+    if (!t.trim()) { setStatus(['Paste the paper text first.'], true); return; }
+    $('paste').hidden = true;
+    loadModel(MCQ.parse(MCQ.splitLines(t)), 'Pasted text', false);
+  };
+
+  /* Claude: fill missing answers, double-check the key */
+  var claudeReady = false, pendingAuto = false;
+  function claudeNote(text, isError) {
+    var st = $('ask-status'); st.textContent = text; st.classList.toggle('error', !!isError);
+    if (text) st.dataset.keep = '1'; else delete st.dataset.keep;
+  }
+  function askError(code) {
+    if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].indexOf(code) >= 0) {
+      sample = null; claudeNote("Claude isn't available on this page for you, so tap the answers yourself.", true);
+    } else if (code === 'rate_limited') claudeNote('Claude is busy or your usage limit was reached. Try again in a minute.', true);
+    else if (code === 'session_expired') claudeNote('Sign in to Claude again, then try once more.', true);
+    else if (code === 'invalid_json') claudeNote("Claude's reply couldn't be read. Try again.", true);
+    else if (code === 'prompt_too_large') claudeNote('This paper is too long to send. Fill some answers yourself first.', true);
+    else if (code === 'refused') claudeNote("Claude didn't answer these questions. Tap the answers yourself.", true);
+    else if (code === 'cancelled') claudeNote('Stopped.', false);
+    else claudeNote('Something went wrong. Try again.', true);
+  }
+  function questionList(filter) {
+    var list = [], sec = null;
+    state.model.items.forEach(function (it, idx) {
+      if (it.section !== undefined) { sec = it; return; }
+      if (!filter(it)) return;
+      var o = { id: idx, question: it.q, options: it.options.map(function (op) { return op.text; }) };
+      if (it.word) o.underlined_word = it.word;
+      if (sec) { o.section = sec.section; if (sec.help) o.section_instructions = sec.help; }
+      list.push(o);
+    });
+    return list;
+  }
+  function promptFor(list) {
+    return 'You are answering a school multiple-choice test so a teacher can build the answer key. ' +
+      'Work out each question on its own and choose the single best option. Questions may be in English or Marathi; ' +
+      'Marathi questions are from the Maharashtra state board (Balbharati) textbooks. ' +
+      'If a question names an underlined word, the question is about that word. Follow any section instructions. ' +
+      'Reply with only a JSON array, one object per question, in the same order: ' +
+      '{"id": number, "answer": number (0-based index into options), "why": string (under 12 words, same language as the question)}. ' +
+      'Example: [{"id": 3, "answer": 1, "why": "\'slowly\' tells how she walked, so it is an adverb."}]\n\nQuestions:\n' + JSON.stringify(list);
+  }
+  function runClaude(list, label, apply) {
+    if (!sample || askCtl || !list.length) return Promise.resolve();
+    var chunks = [];
+    for (var i = 0; i < list.length; i += 40) chunks.push(list.slice(i, i + 40));
+    askCtl = new AbortController();
+    var sig = askCtl.signal, done = 0;
+    claudeNote(label + ' Thinking...', false);
+    renderSummary();
+    var chain = Promise.resolve();
+    chunks.forEach(function (chunk) {
+      chain = chain.then(function () {
+        return sample.json(promptFor(chunk), { signal: sig, onText: function () { claudeNote(label + ' Writing answers...', false); } })
+          .then(function (res) {
+            if (Array.isArray(res)) res.forEach(function (r) {
+              var id = Number(r && r.id), a = Number(r && r.answer), it = state.model.items[id];
+              if (!it || it.q === undefined || !(a >= 0 && a < it.options.length && a === Math.floor(a))) return;
+              apply(it, a, String((r && r.why) || '').slice(0, 160));
+            });
+            done += chunk.length;
+            if (chunks.length > 1 && done < list.length) { claudeNote(label + ' ' + done + ' of ' + list.length + ' done...', false); renderAll(); }
+          });
+      });
+    });
+    return chain.then(function () { return true; }, function (e) { askError(e && e.code); return false; })
+      .then(function (ok) { askCtl = null; renderAll(); return ok; });
+  }
+  function fillMissing() {
+    var list = questionList(function (it) { return it.answer < 0; });
+    var n = 0;
+    return runClaude(list, 'Filling ' + list.length + (list.length === 1 ? ' answer.' : ' answers.'), function (it, a, why) {
+      if (it.answer >= 0) return;
+      it.answer = a; it.source = 'claude'; it.reviewed = false;
+      it.flags = it.flags.filter(function (f) { return f.t !== 'noanswer'; });
+      it.flags.push({ t: 'suggested', why: why });
+      n++;
+    }).then(function (ok) {
+      if (!ok) return;
+      var left = questions().filter(function (q) { return q.answer < 0; }).length;
+      claudeNote('Claude filled ' + n + (n === 1 ? ' answer' : ' answers') + (left ? '. ' + left + ' still empty.' : '. Read through them below; tap any option to change one.'), !!left);
+      renderAll();
+    });
+  }
+  function checkKey() {
+    var list = questionList(function (it) { return it.answer >= 0 && it.source !== 'claude'; });
+    var agree = 0, differ = 0;
+    return runClaude(list, 'Checking ' + list.length + (list.length === 1 ? ' answer.' : ' answers.'), function (it, a, why) {
+      it.flags = it.flags.filter(function (f) { return f.t !== 'disagree'; });
+      if (a === it.answer) { agree++; return; }
+      differ++; it.reviewed = false;
+      it.flags.push({ t: 'disagree', pick: a, why: why });
+    }).then(function (ok) {
+      if (!ok) return;
+      state.checked = true;
+      claudeNote('Claude agrees with ' + agree + ' of ' + (agree + differ) + '.' + (differ ? ' ' + differ + (differ === 1 ? ' needs' : ' need') + ' a look.' : ''), false);
+      if (differ) state.filter = 'flag';
+      renderAll();
+    });
+  }
+  function autoFill() {
+    if (!questions().some(function (q) { return q.answer < 0; })) return;
+    if (sample) fillMissing(); else if (!claudeReady) pendingAuto = true;
+  }
+  $('ask-go').onclick = function () { fillMissing(); };
+  $('check-go').onclick = function () { checkKey(); };
+  $('ask-stop').onclick = function () { if (askCtl) askCtl.abort(); };
+
+  /* Connector availability: listing never asks the viewer; the first make asks for approval. */
+  function bootConnector() {
+    if (!(window.claude && typeof window.claude.use === 'function')) { setConn('Open this page in Claude to make forms from here.', 'error'); renderMake(); return; }
+    window.claude.use('mcp').then(function (m) {
+      mcp = m || null;
+      if (!mcp) { setConn('Making forms isn\'t available in this view. Open this page in Claude.', 'error'); renderMake(); return; }
+      renderMake();
+      return mcp.listTools(SERVER).then(function (r) {
+        var info = (r.servers || []).filter(function (x) { return x.server === SERVER; })[0];
+        if (!info) { setConn('Not connected in Claude', 'error'); showSetup(); return; }
+        if (info.authStatus === 'needs_reauth') { setConn('Reconnect MCQ Form Builder in Claude Settings, Connectors.', 'error'); return; }
+        setConn('Connector found');
+        startWatches();
+      }, function (e) { setConn(connectorError(e, false), 'error'); });
+    }, function () { setConn('Making forms isn\'t available in this view. Open this page in Claude.', 'error'); renderMake(); });
+  }
+
+  /* Start with the example paper */
+  loadModel(MCQ.parse(MCQ.splitLines(EXAMPLE)), 'std_6_tense_quiz.txt', true);
+  bootConnector();
+
+  if (window.claude && typeof window.claude.use === 'function') {
+    window.claude.use('sample').then(function (s) { sample = s || null; }).catch(function () { sample = null; })
+      .then(function () {
+        claudeReady = true;
+        if (!sample) claudeNote("Claude isn't available on this page right now, so tap the answers yourself.", false);
+        if (state.model) renderSummary();
+        if (pendingAuto && sample) { pendingAuto = false; fillMissing(); }
+      });
+  } else { claudeReady = true; claudeNote("Claude isn't available on this page right now, so tap the answers yourself.", false); renderSummary(); }
+})();
+</script>
