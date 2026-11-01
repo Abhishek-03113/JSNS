@@ -66,10 +66,14 @@ function setStatus(text: string | null) {
   s.hidden = !text;
 }
 
-function showDrop(open: boolean) {
-  $("drop").hidden = !open;
-  $("drop-cancel").hidden = !state.model;
-  if (!open) $("paste").hidden = true;
+/** Start screen (upload) or workspace (preview + form). */
+function showStart(open: boolean) {
+  $("start").hidden = !open;
+  $("workspace").hidden = open;
+  $("back").hidden = !state.model;
+  $("paste").hidden = true;
+  if (!open) setStatus(null);
+  window.scrollTo(0, 0);
 }
 
 function loadModel(model: QuizModel, name: string, example: boolean) {
@@ -87,12 +91,11 @@ function loadModel(model: QuizModel, name: string, example: boolean) {
   $<HTMLInputElement>("s-title").value = st.title;
   $<HTMLTextAreaElement>("s-desc").value = st.description;
   $<HTMLTextAreaElement>("s-confirm").value = st.confirm;
-  $("file-name").textContent = name;
+  $("file-name").textContent = example ? "Example quiz" : name;
   $("example-tag").hidden = !example;
-  $("paper").hidden = false;
-  $("review").hidden = false;
   $("made").hidden = true;
-  showDrop(false);
+  makeStatus(null);
+  showStart(false);
   renderAll();
 }
 
@@ -287,7 +290,7 @@ function renderSide() {
   warn.hidden = !text;
   const make = $<HTMLButtonElement>("make");
   make.disabled = state.making || !qs.length;
-  make.textContent = state.making ? "Making form…" : "Make form";
+  make.textContent = state.making ? "Creating…" : "Create Google Form";
 }
 
 function renderAll(focusIdx?: number) {
@@ -308,7 +311,7 @@ function showMade(f: MadeForm) {
   box.textContent = "";
   const head = el("div", "made-head");
   head.insertAdjacentHTML("beforeend", ICON.tick);
-  head.append(el("span", undefined, "Form made"));
+  head.append(el("span", undefined, "Google Form created"));
   box.append(head, linkRow("Edit", f.editUrl), linkRow("Students", f.studentUrl || f.publishedUrl));
   box.hidden = false;
 }
@@ -322,7 +325,7 @@ async function make() {
   try {
     const r = await api<{ form: MadeForm }>("POST", "/api/forms", { payload: buildPayload(state.model, settings()), source: "app" });
     showMade(r.form);
-    toast("Form made");
+    toast("Google Form created");
   } catch (e) {
     const err = e as ApiError;
     const invalid = (err.details as { errors?: string[] } | undefined)?.errors;
@@ -372,8 +375,9 @@ $<HTMLInputElement>("file").onchange = function () {
   if (f) readFile(f);
   (this as HTMLInputElement).value = "";
 };
-$("replace").onclick = () => showDrop(true);
-$("drop-cancel").onclick = () => showDrop(false);
+$("replace").onclick = () => showStart(true);
+$("back").onclick = () => showStart(false);
+$("example").onclick = () => loadModel(parseText(EXAMPLE_PAPER), EXAMPLE_NAME, true);
 $("paste-open").onclick = () => {
   $("paste").hidden = false;
   $<HTMLTextAreaElement>("paste-text").focus();
@@ -399,7 +403,6 @@ $("make").onclick = make;
 $("suggest").onclick = suggest;
 for (const id of ["s-points"]) $(id).addEventListener("input", renderMeta);
 
-loadModel(parseText(EXAMPLE_PAPER), EXAMPLE_NAME, true);
 initShell()
   .then((m) => {
     me = m;
