@@ -52,20 +52,45 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, text?: 
   return e;
 }
 
+/** Fallback wording when the server sends no specific message: by status family, then common codes. */
+function statusText(status: number): string {
+  const byCode: Record<number, string> = {
+    400: "That request didn't make sense. Reload the page and try again.",
+    403: "You can't do that from here. Reload the page and try again.",
+    404: "That's no longer there. Reload to see the latest list.",
+    409: "That clashes with something that already exists. Reload to see the latest.",
+    413: "That's too large to send.",
+    429: "Too many requests at once. Wait a few seconds and try again.",
+    502: "Google didn't answer properly. Try again in a minute.",
+    503: "The app is temporarily unavailable. Nothing was changed; try again shortly.",
+    504: "That took too long. Wait a moment, then check before trying again.",
+  };
+  if (byCode[status]) return byCode[status]!;
+  if (status >= 500) return "Something broke on our side. Try again; if it keeps happening, come back in a few minutes.";
+  if (status >= 400) return "That request didn't work. Check what you entered and try again.";
+  if (status >= 300) return "The page moved. Reload to continue.";
+  return "Something unexpected happened. Reload the page.";
+}
+
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const res = await fetch(path, {
-    method,
-    headers: body === undefined ? {} : { "content-type": "application/json" },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    credentials: "same-origin",
-  });
+  let res: Response;
+  try {
+    res = await fetch(path, {
+      method,
+      headers: body === undefined ? {} : { "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      credentials: "same-origin",
+    });
+  } catch {
+    throw new ApiError(0, "network", "Can't reach the app. Check your internet connection and try again.");
+  }
   if (res.status === 401) {
     location.href = "/login?return_to=/";
     throw new ApiError(401, "unauthenticated", "Signed out");
   }
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new ApiError(res.status, data?.error?.code || "error", data?.error?.message || "Request failed (" + res.status + ").");
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code || "error", data?.error?.message || statusText(res.status));
   return data as T;
 }
 

@@ -1,4 +1,5 @@
 import { AppError } from "./errors.ts";
+import { statusMessage } from "./web/errorPage.ts";
 
 export function json(data: unknown, status = 200, headers: HeadersInit = {}): Response {
   return new Response(JSON.stringify(data), {
@@ -30,7 +31,7 @@ export function errorResponse(e: unknown): Response {
     return json({ error: { code: "database_unavailable", message: "The database couldn't be reached. Nothing was changed; try again in a moment." } }, 503, { "retry-after": "5" });
   }
   console.error(e);
-  return json({ error: { code: "internal", message: "Something went wrong on the server. Try again; if it keeps happening, sign in again." } }, 500);
+  return json({ error: { code: "internal", message: statusMessage(500) } }, 500);
 }
 
 export function redirect(location: string, headers: Record<string, string> = {}, status = 302): Response {

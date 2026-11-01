@@ -78,29 +78,71 @@ export function wantsHtml(req: Request): boolean {
   return !isMachinePath(new URL(req.url).pathname);
 }
 
+type Copy = { title: string; soft: string; message: string };
+
+/**
+ * Wording by status family, then by the common codes inside each family. 3xx are redirects the
+ * browser normally follows on its own; the 3xx copy only shows if a redirect can't be followed.
+ */
+const FAMILY: Record<"3" | "4" | "5", Copy> = {
+  "3": { title: "This page has moved.", soft: "Follow the link to continue.", message: "The address you used now points somewhere else. Use the button below to carry on." },
+  "4": { title: "That request didn't work.", soft: "Something about it needs changing.", message: "Check the link or what you entered, then try again." },
+  "5": { title: "Something broke.", soft: "It's on our side, not yours.", message: "The request couldn't be finished. Try again; if it keeps happening, come back in a few minutes." },
+};
+
+const BY_STATUS: Record<number, Copy> = {
+  301: { title: "This page has moved.", soft: "For good.", message: "The address changed permanently. Use the button below and update any bookmark." },
+  302: { title: "Taking you somewhere else.", soft: "Just a moment.", message: "This page sends you on to another one. Use the button below if nothing happens." },
+  304: { title: "Nothing new here.", soft: "Your copy is up to date.", message: "The page hasn't changed since you last loaded it." },
+  400: { title: "That request didn't make sense.", soft: "Something in it was malformed.", message: "The link or form sent something the app couldn't read. Go back and try again." },
+  401: { title: "Sign in to continue.", soft: "This page needs your Google account.", message: "Your session has ended or you haven't signed in yet." },
+  403: { title: "You can't do that here.", soft: "Your account doesn't have access.", message: "This action isn't allowed for your account, or it came from another site. Go back to your forms and try from there." },
+  404: { title: "Page not found.", soft: "Nothing lives at this address.", message: "The link may be old or mistyped. Your forms are on the dashboard." },
+  405: { title: "Page not found.", soft: "This address doesn't do that.", message: "The page exists but can't be used this way. Start again from your forms." },
+  408: { title: "That took too long.", soft: "The request timed out before it finished.", message: "Check your connection and try again." },
+  409: { title: "That clashes with something.", soft: "It already exists or was already done.", message: "Refresh to see the latest state before trying again." },
+  410: { title: "This is gone.", soft: "It was removed for good.", message: "The thing this link pointed to no longer exists." },
+  413: { title: "That's too large.", soft: "It's over the size limit.", message: "Split it into smaller parts and try again." },
+  422: { title: "Some details need fixing.", soft: "The app couldn't use what was sent.", message: "Check what you entered and try again." },
+  429: { title: "Too many requests.", soft: "Give it a moment.", message: "You've sent a lot of requests in a short time. Wait a few seconds, then try again." },
+  500: FAMILY["5"],
+  502: { title: "Google didn't answer properly.", soft: "A service we depend on had a problem.", message: "The app reached Google, but the reply wasn't usable. Try again in a minute." },
+  503: { title: "Temporarily unavailable.", soft: "Usually this clears up in a moment.", message: "The app can't handle requests right now. Nothing was changed; try again shortly." },
+  504: { title: "That took too long.", soft: "A service we depend on didn't answer in time.", message: "Nothing may have been saved. Wait a moment and try again." },
+};
+
+/** Copy for any status: the specific code if known, otherwise its family. */
+export function statusCopy(status: number): Copy {
+  if (BY_STATUS[status]) return BY_STATUS[status]!;
+  const fam = String(status)[0] as "3" | "4" | "5";
+  return FAMILY[fam] ?? FAMILY["5"];
+}
+
+/** Default buttons per family: 4xx points somewhere safe, 5xx offers a retry first. */
+function familyActions(status: number, location?: string): ErrorPageAction[] {
+  if (status >= 300 && status < 400) return [{ label: "Continue", href: location || "/", primary: true }];
+  if (status === 401) return [{ label: "Sign in", href: "/login", primary: true }];
+  if (status >= 500) return [{ label: "Try again", href: "", primary: true }, { label: "Go to your forms", href: "/" }];
+  return [{ label: "Go to your forms", href: "/", primary: true }];
+}
+
+/** A page for any status, with optional specific detail replacing the generic message. */
+export function statusPage(status: number, detail?: string, opts: { reference?: string; location?: string } = {}): Response {
+  const c = statusCopy(status);
+  return errorPage({ status, title: c.title, soft: c.soft, message: detail || c.message, actions: familyActions(status, opts.location), reference: opts.reference });
+}
+
+/** One-line message for JSON clients when no specific one exists. */
+export function statusMessage(status: number): string {
+  const c = statusCopy(status);
+  return `${c.title} ${c.message}`;
+}
+
 export const PAGES = {
-  notFound: () =>
-    errorPage({ status: 404, title: "Page not found.", soft: "Nothing lives at this address.", message: "The link may be old or mistyped. Your forms are on the dashboard." }),
-  serverError: (reference?: string) =>
-    errorPage({
-      status: 500,
-      title: "Something broke.",
-      soft: "It's on our side, not yours.",
-      message: "The request couldn't be finished. Try again; if it keeps happening, sign in again or come back in a few minutes.",
-      actions: [
-        { label: "Try again", href: "", primary: true },
-        { label: "Go to your forms", href: "/" },
-      ],
-      reference,
-    }),
+  notFound: () => statusPage(404),
+  serverError: (reference?: string) => statusPage(500, undefined, { reference }),
   databaseUnavailable: () =>
-    errorPage({
-      status: 503,
-      title: "Can't reach the database.",
-      soft: "Usually this clears up in a moment.",
-      message: "The app couldn't connect to its database just now, so nothing was changed. Wait a few seconds and try again.",
-      actions: [{ label: "Try again", href: "", primary: true }],
-    }),
+    statusPage(503, "The app couldn't connect to its database just now, so nothing was changed. Wait a few seconds and try again."),
   notSetUp: () =>
     errorPage({
       status: 503,

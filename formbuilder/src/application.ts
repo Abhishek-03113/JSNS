@@ -7,7 +7,7 @@ import { AppError } from "./errors.ts";
 import { AppsScriptClient, scriptEditorUrl, STANDALONE_MANIFEST } from "./google/appsScript.ts";
 import { authorizeUrl, exchangeCode, fetchProfile, missingScopes, revoke, TokenService } from "./google/oauth.ts";
 import { cookie, errorResponse, isDatabaseUnavailable, json, parseCookies, readJson, redirect, Router } from "./http.ts";
-import { errorPage, PAGES, wantsHtml } from "./web/errorPage.ts";
+import { PAGES, statusPage, wantsHtml } from "./web/errorPage.ts";
 import { handleMcp } from "./mcp.ts";
 import { registerOAuthRoutes, resourceMetadataUrl } from "./oauthServer.ts";
 import { buildScript, questionCount, unansweredCount, validatePayload, type FormPayload } from "./mcq/script.ts";
@@ -356,17 +356,13 @@ function buildRouter() {
   return r;
 }
 
-/** The page a person sees when a browser request fails. */
+/** The page a person sees when a browser request fails: wording by status family and code. */
 function pageForError(e: unknown, req: Request): Response {
   if (e instanceof AppError) {
     if (e.status === 401) return redirect("/login?return_to=" + encodeURIComponent(new URL(req.url).pathname));
-    if (e.status === 404) return PAGES.notFound();
-    if (e.code === "cross_site")
-      return errorPage({ status: 403, title: "Blocked for safety.", soft: "That request came from another site.", message: "For your security, changes can only be made from this app's own pages. Go back to your forms and try again from there." });
-    if (e.status < 500)
-      return errorPage({ status: e.status, title: "That didn't work.", soft: "Here's what went wrong.", message: e.message });
-    console.error(e);
-    return errorPage({ status: e.status, title: "Something broke.", soft: "It's on our side, not yours.", message: e.message, actions: [{ label: "Try again", href: "", primary: true }, { label: "Go to your forms", href: "/" }] });
+    if (e.status >= 500) console.error(e);
+    // 4xx carry a specific reason worth showing; for 5xx the family wording is clearer than internals.
+    return statusPage(e.status, e.status < 500 ? e.message : undefined);
   }
   if (isDatabaseUnavailable(e)) {
     console.error("Database unavailable:", e);
@@ -452,13 +448,13 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
           const origin = req.headers.get("origin");
           const site = req.headers.get("sec-fetch-site");
           if ((origin && origin !== appOrigin) || (site && !["same-origin", "none"].includes(site))) {
-            throw new AppError(403, "cross_site", "Cross-site requests must use an API token.");
+            throw new AppError(403, "cross_site", "For your security, changes can only be made from this app's own pages. Programs calling the API need an API token.");
           }
         }
       }
 
       const m = router.match(req.method, path);
-      if (!m) return wantsHtml(req) ? PAGES.notFound() : withCors(json({ error: { code: "not_found", message: "No such endpoint." } }, 404));
+      if (!m) return wantsHtml(req) ? PAGES.notFound() : withCors(json({ error: { code: "not_found", message: "No such endpoint. Check the path against the API docs." } }, 404));
       if ("allowed" in m)
         return wantsHtml(req)
           ? PAGES.notFound()

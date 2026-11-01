@@ -558,3 +558,29 @@ describe("graceful errors", () => {
     await cleanup.close();
   });
 });
+
+describe("messages by status family", () => {
+  test("each family and common code has its own wording", async () => {
+    const { statusCopy } = await import("../src/web/errorPage.ts");
+    expect(statusCopy(404).title).toBe("Page not found.");
+    expect(statusCopy(429).title).toBe("Too many requests.");
+    expect(statusCopy(418).title).toBe("That request didn't work."); // unknown 4xx -> family
+    expect(statusCopy(502).title).toBe("Google didn't answer properly.");
+    expect(statusCopy(599).title).toBe("Something broke."); // unknown 5xx -> family
+    expect(statusCopy(307).title).toBe("This page has moved."); // unknown 3xx -> family
+    expect(new Set([statusCopy(418).soft, statusCopy(599).soft, statusCopy(307).soft]).size).toBe(3);
+  });
+
+  test("a blocked cross-site post shows the 4xx page with the specific reason", async () => {
+    const cookie = await signIn();
+    const reg = (await (await app.fetch(new Request(BASE + "/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["https://claude.ai/cb"] }) }))).json()) as any;
+    const r = await app.fetch(
+      new Request(BASE + "/oauth/authorize", { method: "POST", headers: { cookie, origin: "https://evil.example", accept: "text/html", "content-type": "application/x-www-form-urlencoded" }, body: "client_id=" + reg.client_id }),
+    );
+    expect(r.status).toBe(403);
+    const html = await r.text();
+    expect(html).toContain("You can&#39;t do that here.");
+    expect(html).toContain("For your security, changes can only be made from this app&#39;s own pages.");
+    expect(html).toContain("Go to your forms");
+  });
+});
