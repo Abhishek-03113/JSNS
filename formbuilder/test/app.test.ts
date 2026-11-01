@@ -480,3 +480,81 @@ describe("claude.ai connector: OAuth + MCP", () => {
     expect((await app.fetch(new Request(BASE + "/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["http://evil.example/cb"] }) }))).status).toBe(400);
   });
 });
+
+describe("graceful errors", () => {
+  test("people get pages, programs get JSON", async () => {
+    const page = await app.fetch(new Request(BASE + "/no-such-page", { headers: { accept: "text/html" } }));
+    expect(page.status).toBe(404);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(await page.text()).toContain("Page not found.");
+    const api = await call("GET", "/api/no-such-endpoint");
+    expect(api.status).toBe(404);
+    expect(((await api.json()) as any).error.code).toBe("not_found");
+  });
+
+  test("a database failure during sign-in lands on the sign-in page with a message, not JSON", async () => {
+    const original = app.store.upsertUser.bind(app.store);
+    app.store.upsertUser = async () => {
+      throw Object.assign(new Error("Connection closed"), { code: "ERR_POSTGRES_CONNECTION_CLOSED" });
+    };
+    try {
+      const start = await call("GET", "/auth/google");
+      const consent = await fetch(start.headers.get("location")!, { redirect: "manual" });
+      const cb = new URL(consent.headers.get("location")!);
+      const done = await app.fetch(new Request(BASE + cb.pathname + cb.search));
+      expect(done.status).toBe(302);
+      expect(done.headers.get("location")).toBe("/login?error=database_unavailable");
+    } finally {
+      app.store.upsertUser = original;
+    }
+  });
+
+  test("an unexpected error on a page shows an error page with a reference", async () => {
+    const cookie = await signIn();
+    const original = app.store.listGrants.bind(app.store);
+    const page = await (async () => {
+      // A page route that hits the store: /oauth/authorize with a registered client.
+      const reg = (await (await app.fetch(new Request(BASE + "/oauth/register", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ redirect_uris: ["https://claude.ai/cb"] }) }))).json()) as any;
+      const origGet = app.store.getOAuthClient.bind(app.store);
+      app.store.getOAuthClient = async () => {
+        throw new TypeError("boom");
+      };
+      try {
+        return await app.fetch(new Request(BASE + "/oauth/authorize?client_id=" + reg.client_id, { headers: { cookie, accept: "text/html" } }));
+      } finally {
+        app.store.getOAuthClient = origGet;
+      }
+    })();
+    app.store.listGrants = original;
+    expect(page.status).toBe(500);
+    const html = await page.text();
+    expect(html).toContain("Something broke.");
+    expect(html).toMatch(/Reference: [A-Za-z0-9_-]{8}/);
+    expect(html).not.toContain("boom");
+  });
+
+  test("database outages are recognised from the errors Supabase actually returns", async () => {
+    const { isDatabaseUnavailable } = await import("../src/http.ts");
+    expect(isDatabaseUnavailable(new Error("Connection closed"))).toBe(true);
+    expect(isDatabaseUnavailable(new Error("(EMAXCONNSESSION) max clients reached in session mode - max clients are limited to pool_size: 15"))).toBe(true);
+    expect(isDatabaseUnavailable({ code: "ERR_POSTGRES_SERVER_ERROR", errno: "53300", message: "too many" })).toBe(true);
+    expect(isDatabaseUnavailable({ code: "ERR_POSTGRES_SERVER_ERROR", errno: "22007", message: "invalid input syntax" })).toBe(false);
+  });
+
+  test("migrations from several instances starting at once don't collide", async () => {
+    const { Store } = await import("../src/db.ts");
+    const reset = new SQL(DB_URL);
+    await reset.unsafe("DROP SCHEMA IF EXISTS race CASCADE; CREATE SCHEMA race;");
+    await reset.close();
+    const url = DB_URL + (DB_URL.includes("?") ? "&" : "?") + "options=" + encodeURIComponent("-c search_path=race");
+    const stores = [new Store(url), new Store(url), new Store(url), new Store(url)];
+    const results = await Promise.allSettled(stores.map((s) => s.migrate()));
+    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+    const appliedOnce = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+    expect(appliedOnce.sort()).toEqual(["001_init.sql", "002_short_url.sql", "003_oauth.sql"]);
+    await Promise.all(stores.map((s) => s.close()));
+    const cleanup = new SQL(DB_URL);
+    await cleanup.unsafe("DROP SCHEMA race CASCADE");
+    await cleanup.close();
+  });
+});

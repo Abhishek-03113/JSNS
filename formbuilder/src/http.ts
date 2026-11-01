@@ -7,12 +7,30 @@ export function json(data: unknown, status = 200, headers: HeadersInit = {}): Re
   });
 }
 
+/** Postgres errors that mean "couldn't talk to the database" rather than a bug in a query. */
+export function isDatabaseUnavailable(e: unknown): boolean {
+  const err = e as { code?: string; errno?: string; message?: string } | null;
+  if (!err || typeof err !== "object") return false;
+  const msg = String(err.message || "");
+  return (
+    /^ERR_POSTGRES_(CONNECTION|CONNECTION_CLOSED|CONNECTION_TIMEOUT|IDLE_TIMEOUT|LIFETIME_TIMEOUT|TLS)/.test(String(err.code || "")) ||
+    String(err.errno || "").startsWith("08") || // connection exceptions
+    String(err.errno || "") === "53300" || // too many connections
+    /connection closed|max clients reached|too many connections|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|EMAXCONN/i.test(msg)
+  );
+}
+
+/** JSON error for programs (API, MCP, OAuth). Pages use the HTML versions in web/errorPage.ts. */
 export function errorResponse(e: unknown): Response {
   if (e instanceof AppError) {
     return json({ error: { code: e.code, message: e.message, ...(e.details ? { details: e.details } : {}) } }, e.status);
   }
+  if (isDatabaseUnavailable(e)) {
+    console.error("Database unavailable:", e);
+    return json({ error: { code: "database_unavailable", message: "The database couldn't be reached. Nothing was changed; try again in a moment." } }, 503, { "retry-after": "5" });
+  }
   console.error(e);
-  return json({ error: { code: "internal", message: "Something went wrong on the server." } }, 500);
+  return json({ error: { code: "internal", message: "Something went wrong on the server. Try again; if it keeps happening, sign in again." } }, 500);
 }
 
 export function redirect(location: string, headers: Record<string, string> = {}, status = 302): Response {

@@ -70,23 +70,27 @@ export class Store {
    *            off so the transaction pooler (port 6543) works too.
    */
   constructor(url: string, opts: { max?: number } = {}) {
-    this.sql = new SQL({ url, prepare: false, max: opts.max ?? 10 });
+    // Serverless-friendly: few connections per instance, closed when idle, and a bounded connect wait,
+    // so many short-lived instances don't exhaust the pooler (Supabase session mode allows ~15).
+    this.sql = new SQL({ url, prepare: false, max: opts.max ?? 3, idleTimeout: 20, connectionTimeout: 10 });
   }
 
   async migrate(): Promise<string[]> {
-    const sql = this.sql;
-    await sql`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
-    await sql`ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY`;
-    const done = new Set((await sql`SELECT name FROM schema_migrations`).map((r: { name: string }) => r.name));
+    // One transaction behind an advisory lock: when several instances cold-start at once they take
+    // turns, and each later one sees the migrations already recorded instead of racing CREATE TABLE.
     const applied: string[] = [];
-    for (const { name, sql: text } of MIGRATIONS) {
-      if (done.has(name)) continue;
-      await sql.begin(async (tx) => {
+    await this.sql.begin(async (tx) => {
+      await tx`SELECT pg_advisory_xact_lock(7427001)`;
+      await tx`CREATE TABLE IF NOT EXISTS schema_migrations (name text PRIMARY KEY, applied_at timestamptz NOT NULL DEFAULT now())`;
+      await tx`ALTER TABLE schema_migrations ENABLE ROW LEVEL SECURITY`;
+      const done = new Set((await tx`SELECT name FROM schema_migrations`).map((r: { name: string }) => r.name));
+      for (const { name, sql: text } of MIGRATIONS) {
+        if (done.has(name)) continue;
         await tx.unsafe(text);
         await tx`INSERT INTO schema_migrations (name) VALUES (${name})`;
-      });
-      applied.push(name);
-    }
+        applied.push(name);
+      }
+    });
     return applied;
   }
 
@@ -121,7 +125,7 @@ export class Store {
     t: { access_token_enc: string; access_token_expires_at: Date; refresh_token_enc?: string | null; scopes?: string },
   ) {
     await this.sql`
-      UPDATE users SET access_token_enc = ${t.access_token_enc}, access_token_expires_at = ${t.access_token_expires_at},
+      UPDATE users SET access_token_enc = ${t.access_token_enc}, access_token_expires_at = ${new Date(t.access_token_expires_at).toISOString()}::timestamptz,
         refresh_token_enc = COALESCE(${t.refresh_token_enc ?? null}, refresh_token_enc),
         scopes = COALESCE(${t.scopes ?? null}, scopes), updated_at = now()
       WHERE id = ${userId}`;

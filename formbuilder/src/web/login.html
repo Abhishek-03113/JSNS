@@ -62,7 +62,9 @@
     token_exchange: "Google didn't accept the sign-in. Try again.",
     profile: "Your Google profile couldn't be read. Try again.",
     email_unverified: "This Google account's email isn't verified.",
-    google_error: "Google reported an error. Try again."
+    google_error: "Google reported an error. Try again.",
+    database_unavailable: "Google signed you in, but the app couldn't reach its database to save it. Wait a few seconds and try again.",
+    server_error: "Google signed you in, but the app couldn't finish. Try again; if it keeps happening, come back in a few minutes."
   };
   var params = new URLSearchParams(location.search);
   var err = params.get('error');

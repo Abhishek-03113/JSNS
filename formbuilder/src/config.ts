@@ -22,6 +22,8 @@ export interface Config {
   executorScriptId: string;
   /** postgres:// URL, e.g. the Supabase pooler connection string. */
   databaseUrl: string;
+  /** Max Postgres connections per instance (serverless: keep small). */
+  dbPoolMax: number;
   corsOrigins: string[];
   allowedEmails: string[];
   sessionDays: number;
@@ -54,6 +56,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     sessionSecret: env.SESSION_SECRET || "",
     executorScriptId: env.APPS_SCRIPT_EXECUTOR_ID || "",
     databaseUrl: env.DATABASE_URL || "",
+    dbPoolMax: Math.max(1, Number(env.DB_POOL_MAX || 3)),
     corsOrigins: list(env.CORS_ORIGINS),
     allowedEmails: list(env.ALLOWED_EMAILS).map((e) => e.toLowerCase()),
     sessionDays: Number(env.SESSION_DAYS || 30),

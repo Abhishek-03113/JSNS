@@ -6,7 +6,8 @@ import { Store, type ApiToken, type FormRecord, type FormStatus, type User } fro
 import { AppError } from "./errors.ts";
 import { AppsScriptClient, scriptEditorUrl, STANDALONE_MANIFEST } from "./google/appsScript.ts";
 import { authorizeUrl, exchangeCode, fetchProfile, missingScopes, revoke, TokenService } from "./google/oauth.ts";
-import { cookie, errorResponse, json, parseCookies, readJson, redirect, Router } from "./http.ts";
+import { cookie, errorResponse, isDatabaseUnavailable, json, parseCookies, readJson, redirect, Router } from "./http.ts";
+import { errorPage, PAGES, wantsHtml } from "./web/errorPage.ts";
 import { handleMcp } from "./mcp.ts";
 import { registerOAuthRoutes, resourceMetadataUrl } from "./oauthServer.ts";
 import { buildScript, questionCount, unansweredCount, validatePayload, type FormPayload } from "./mcq/script.ts";
@@ -163,7 +164,13 @@ function buildRouter() {
     const fail = (code: string) => redirect("/login?error=" + encodeURIComponent(code));
     if (url.searchParams.get("error")) return fail(url.searchParams.get("error") === "access_denied" ? "access_denied" : "google_error");
     const code = url.searchParams.get("code");
-    const st = await ctx.store.takeOAuthState(url.searchParams.get("state") || "");
+    let st: { verifier: string; return_to: string } | null;
+    try {
+      st = await ctx.store.takeOAuthState(url.searchParams.get("state") || "");
+    } catch (e) {
+      console.error("Sign-in state lookup failed:", e);
+      return fail(isDatabaseUnavailable(e) ? "database_unavailable" : "server_error");
+    }
     if (!code || !st) return fail("state_mismatch");
     const tokens = await exchangeCode(ctx.cfg, code, st.verifier).catch(() => null);
     if (!tokens) return fail("token_exchange");
@@ -174,13 +181,18 @@ function buildRouter() {
       await revoke(ctx.cfg, tokens.access_token);
       return fail("not_allowed");
     }
-    const user = await ctx.store.upsertUser({ google_sub: profile.sub, email: profile.email, name: profile.name || "", picture: profile.picture || "" });
-    await ctx.tokens.storeTokens(user.id, tokens);
-    if (missingScopes(tokens.scope || "").length) return fail("scope_missing");
-    const s = await ctx.store.createSession(user.id, ctx.cfg.sessionDays);
-    return redirect(st.return_to, {
-      "set-cookie": cookie(SESSION_COOKIE, s.token, { secure: ctx.cfg.baseUrl.startsWith("https:"), maxAge: ctx.cfg.sessionDays * 86400 }),
-    });
+    try {
+      const user = await ctx.store.upsertUser({ google_sub: profile.sub, email: profile.email, name: profile.name || "", picture: profile.picture || "" });
+      await ctx.tokens.storeTokens(user.id, tokens);
+      if (missingScopes(tokens.scope || "").length) return fail("scope_missing");
+      const s = await ctx.store.createSession(user.id, ctx.cfg.sessionDays);
+      return redirect(st.return_to, {
+        "set-cookie": cookie(SESSION_COOKIE, s.token, { secure: ctx.cfg.baseUrl.startsWith("https:"), maxAge: ctx.cfg.sessionDays * 86400 }),
+      });
+    } catch (e) {
+      console.error("Sign-in failed after Google returned:", e);
+      return fail(isDatabaseUnavailable(e) ? "database_unavailable" : "server_error");
+    }
   });
 
   r.on("POST", "/auth/logout", async (_req, _p, ctx) => {
@@ -344,6 +356,27 @@ function buildRouter() {
   return r;
 }
 
+/** The page a person sees when a browser request fails. */
+function pageForError(e: unknown, req: Request): Response {
+  if (e instanceof AppError) {
+    if (e.status === 401) return redirect("/login?return_to=" + encodeURIComponent(new URL(req.url).pathname));
+    if (e.status === 404) return PAGES.notFound();
+    if (e.code === "cross_site")
+      return errorPage({ status: 403, title: "Blocked for safety.", soft: "That request came from another site.", message: "For your security, changes can only be made from this app's own pages. Go back to your forms and try again from there." });
+    if (e.status < 500)
+      return errorPage({ status: e.status, title: "That didn't work.", soft: "Here's what went wrong.", message: e.message });
+    console.error(e);
+    return errorPage({ status: e.status, title: "Something broke.", soft: "It's on our side, not yours.", message: e.message, actions: [{ label: "Try again", href: "", primary: true }, { label: "Go to your forms", href: "/" }] });
+  }
+  if (isDatabaseUnavailable(e)) {
+    console.error("Database unavailable:", e);
+    return PAGES.databaseUnavailable();
+  }
+  const reference = randomToken(6);
+  console.error(`Unhandled error (reference ${reference}):`, e);
+  return PAGES.serverError(reference);
+}
+
 /** 401 that tells MCP clients where to start OAuth (RFC 9728). */
 function mcpChallenge(cfg: Config, error = "invalid_token") {
   return json({ error: { code: "unauthenticated", message: "Connect with OAuth to use this MCP server." } }, 401, {
@@ -355,7 +388,7 @@ function mcpChallenge(cfg: Config, error = "invalid_token") {
 const isProtocolPath = (path: string) => path === "/mcp" || path.startsWith("/.well-known/") || ["/oauth/token", "/oauth/register", "/oauth/revoke"].includes(path);
 
 export async function createApp(cfg: Config, deps: { store?: Store } = {}): Promise<App> {
-  const store = deps.store ?? new Store(cfg.databaseUrl);
+  const store = deps.store ?? new Store(cfg.databaseUrl, { max: cfg.dbPoolMax });
   await store.migrate();
   const tokens = new TokenService(cfg, store, new Sealer(cfg.sessionSecret));
   const script = new AppsScriptClient(cfg);
@@ -425,11 +458,14 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
       }
 
       const m = router.match(req.method, path);
-      if (!m) return withCors(json({ error: { code: "not_found", message: "No such endpoint." } }, 404));
-      if ("allowed" in m) return withCors(json({ error: { code: "method_not_allowed", message: "Use " + m.allowed.join(", ") + "." } }, 405, { allow: m.allowed.join(", ") }));
+      if (!m) return wantsHtml(req) ? PAGES.notFound() : withCors(json({ error: { code: "not_found", message: "No such endpoint." } }, 404));
+      if ("allowed" in m)
+        return wantsHtml(req)
+          ? PAGES.notFound()
+          : withCors(json({ error: { code: "method_not_allowed", message: "Use " + m.allowed.join(", ") + "." } }, 405, { allow: m.allowed.join(", ") }));
       return withCors(await m.handler(req, m.params, { cfg, store, tokens, script, auth, sessionToken }));
     } catch (e) {
-      return withCors(errorResponse(e));
+      return wantsHtml(req) ? pageForError(e, req) : withCors(errorResponse(e));
     }
   }
 
