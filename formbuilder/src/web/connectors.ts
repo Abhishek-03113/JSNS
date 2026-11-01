@@ -117,6 +117,4 @@ $("token-create").onclick = async () => {
 };
 
 renderCurl();
-initShell()
-  .then(() => Promise.all([loadConnections(), loadTokens()]))
-  .catch((e) => toast((e as Error).message));
+Promise.all([initShell(), loadConnections(), loadTokens()]).catch((e) => toast((e as Error).message));

@@ -16,31 +16,35 @@
     <a class="brand" href="/"><img src="/assets/favicon.svg" width="22" height="22" alt="">MCQ Form Builder</a>
   </div>
 </header>
-<main class="page login">
-  <div class="login-text">
-    <h1 class="hero-title">Question paper in, graded Google Form out</h1>
+<main class="page">
+  <section class="hero">
+  <div class="hero-copy">
+    <h1 class="hero-title">Turn a question paper into a graded Google Form</h1>
     <a class="btn btn-primary btn-lg" id="go" href="/auth/google">
       <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/><path fill="currentColor" opacity=".8" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/><path fill="currentColor" opacity=".6" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/><path fill="currentColor" opacity=".9" d="M9 3.6c1.3 0 2.5.5 3.5 1.4l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>
       Continue with Google
     </a>
     <div class="status error" id="status" aria-live="polite" hidden></div>
   </div>
-
-  <div class="login-preview" aria-hidden="true">
-    <article class="q">
-      <div class="q-head"><span class="q-num">7</span></div>
-      <p class="q-text">What is the simple past tense of the irregular verb "write"?</p>
-      <div class="opts">
-        <div class="opt static"><span class="lbl">A</span><span class="otext">written</span></div>
-        <div class="opt static"><span class="lbl">B</span><span class="otext">writing</span></div>
-        <div class="opt static"><span class="lbl">C</span><span class="otext">writes</span></div>
-        <div class="opt static is-correct"><span class="lbl">D</span><span class="otext">wrote</span><svg class="tick" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9"/><path d="M5 9.3l2.6 2.5L13 6.5"/></svg></div>
+  <div class="hero-visual" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheet-head"><span>Std 6</span><span>Tense quiz</span><span>20 marks</span></div>
+      <p>Q7. What is the simple past tense of "write"?</p>
+      <p class="sheet-o">A) written&ensp;B) writing&ensp;C) writes&ensp;D) wrote</p>
+      <p>Q8. Pick the present continuous form for "I".</p>
+      <p class="sheet-o">A) I am reading&ensp;B) I is reading</p>
+      <p class="sheet-key">Answer key&ensp;7. D&ensp;8. A</p>
+    </div>
+    <div class="formcard">
+      <div class="formcard-title">Std 6 Tense Quiz</div>
+      <div class="formcard-q">7. What is the simple past tense of "write"?</div>
+      <div class="formcard-opts">
+        <span class="fo">written</span><span class="fo">writing</span><span class="fo">writes</span><span class="fo on">wrote<svg class="tick" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9"/><path d="M5 9.3l2.6 2.5L13 6.5"/></svg></span>
       </div>
-    </article>
-    <div class="preview-links">
-      <div class="link-row"><span class="link-label">Students</span><span class="link-url">forms.gle/std6-tense-quiz</span></div>
+      <div class="formcard-foot"><span class="dot"></span>forms.gle/std6-tense-quiz</div>
     </div>
   </div>
+  </section>
 </main>
 <script>
 (function () {

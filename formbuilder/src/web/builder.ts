@@ -37,6 +37,8 @@ const state = {
   making: false,
 };
 let me: Me | null = null;
+/** Question number for each item index, from the last full list render. */
+const numbers = new Map<number, number>();
 
 const CHIP: Partial<Record<FlagType, string>> = {
   conflict: "Key vs *",
@@ -143,7 +145,8 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
     edit.setAttribute("aria-label", "Edit question " + no);
     edit.onclick = () => {
       state.editing.add(idx);
-      renderList();
+      updateCard(idx);
+      $("q-" + idx)?.querySelector<HTMLElement>("textarea")?.focus();
     };
     head.append(edit);
   }
@@ -176,7 +179,7 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
       });
       q.flags = q.flags.filter((f) => f.t !== "odd" && f.t !== "dupe" && !(f.t === "few" && q.options.length >= 2));
       state.editing.delete(idx);
-      renderAll();
+      updateCard(idx);
     };
     const add = el("button", "text-btn", "Add option");
     add.type = "button";
@@ -184,7 +187,9 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
       const used = q.options.map((o) => o.label);
       const set = [["A", "B", "C", "D", "E", "F"], ["a", "b", "c", "d", "e", "f"], ["अ", "ब", "क", "ड", "इ"]].find((s) => used.every((u) => s.includes(u))) || ["A", "B", "C", "D", "E", "F"];
       q.options.push({ label: set.find((l) => !used.includes(l)) || String(q.options.length + 1), text: "" });
-      renderList();
+      updateCard(idx);
+      const inputs = $("q-" + idx)?.querySelectorAll<HTMLInputElement>("input.edit-field");
+      inputs?.[inputs.length - 1]?.focus();
     };
     foot.append(doneBtn, add);
     card.append(foot);
@@ -210,7 +215,7 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
       q.reviewed = true;
       q.source = "you";
       q.flags = q.flags.filter((f) => !["noanswer", "conflict"].includes(f.t));
-      renderAll(idx);
+      updateCard(idx, true);
     };
     opts.append(b);
   });
@@ -228,7 +233,7 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
     ok.type = "button";
     ok.onclick = () => {
       q.reviewed = true;
-      renderAll(idx);
+      updateCard(idx, true);
     };
     foot.append(ok);
     card.append(foot);
@@ -236,11 +241,13 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
   return card;
 }
 
-function renderList(focusIdx?: number) {
+/** Rebuilds the whole list (new paper, tab switch). Built off-document, inserted once. */
+function renderList() {
   const list = $("list");
   const keep = list.scrollTop;
-  list.textContent = "";
-  if (!state.model) return;
+  numbers.clear();
+  if (!state.model) return list.replaceChildren();
+  const frag = document.createDocumentFragment();
   let no = 0;
   let shown = 0;
   state.model.items.forEach((it, idx) => {
@@ -249,17 +256,32 @@ function renderList(focusIdx?: number) {
       const row = el("div", "sec-row");
       row.append(el("h3", undefined, it.section));
       if (it.help) row.append(el("p", undefined, it.help));
-      list.append(row);
+      frag.append(row);
       return;
     }
-    no++;
+    numbers.set(idx, ++no);
     if (state.filter === "flag" && !needsLook(it)) return;
-    list.append(renderCard(it, idx, no));
+    frag.append(renderCard(it, idx, no));
     shown++;
   });
-  if (!shown) list.append(el("div", "empty", state.filter === "flag" ? "Nothing needs a look" : "No questions"));
+  if (!shown) frag.append(el("div", "empty", state.filter === "flag" ? "Nothing needs a look" : "No questions"));
+  list.replaceChildren(frag);
   list.scrollTop = keep;
-  if (focusIdx != null) $("q-" + focusIdx)?.querySelector<HTMLElement>(".opt.is-correct")?.focus({ preventScroll: true });
+}
+
+/**
+ * One question changed: swap just its card and refresh the counters, instead of rebuilding every
+ * card. In "Needs a look" the fixed card stays put until the tab changes, so nothing jumps.
+ */
+function updateCard(idx: number, focusAnswer = false) {
+  const it = state.model?.items[idx];
+  const old = document.getElementById("q-" + idx);
+  if (!it || !isQuestion(it) || !old) return renderAll();
+  const card = renderCard(it, idx, numbers.get(idx) ?? 0);
+  old.replaceWith(card);
+  renderMeta();
+  renderSide();
+  if (focusAnswer) card.querySelector<HTMLElement>(".opt.is-correct")?.focus({ preventScroll: true });
 }
 
 /* Form panel */
@@ -293,9 +315,9 @@ function renderSide() {
   make.textContent = state.making ? "Creating…" : "Create Google Form";
 }
 
-function renderAll(focusIdx?: number) {
+function renderAll() {
   renderMeta();
-  renderList(focusIdx);
+  renderList();
   renderSide();
 }
 
