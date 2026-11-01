@@ -3,6 +3,7 @@ import type { Config } from "./config.ts";
 import { GOOGLE_SCOPES } from "./config.ts";
 import { pkceChallenge, randomToken, Sealer } from "./crypto.ts";
 import { Store, type ApiToken, type FormRecord, type FormStatus, type User } from "./db.ts";
+import { answerProviderFromEnv, type AnswerProvider } from "./answers.ts";
 import { AppError } from "./errors.ts";
 import { AppsScriptClient, scriptEditorUrl, STANDALONE_MANIFEST } from "./google/appsScript.ts";
 import { authorizeUrl, exchangeCode, fetchProfile, missingScopes, revoke, TokenService } from "./google/oauth.ts";
@@ -26,6 +27,7 @@ export interface Ctx {
   store: Store;
   tokens: TokenService;
   script: AppsScriptClient;
+  answers: AnswerProvider | null;
   auth: Auth | null;
   sessionToken: string | null;
 }
@@ -136,15 +138,17 @@ async function ownForm(ctx: Ctx, user: User, id: string): Promise<FormRecord> {
 
 function buildRouter() {
   const r = new Router<Ctx>();
-  const file = (name: string, _type?: string) => () =>
+  const file = (name: string) => () =>
     new Response(ASSETS[name]!.body, { headers: { "content-type": ASSETS[name]!.type, "cache-control": "no-cache" } });
 
   // Pages: the dashboard sits behind Google sign-in
-  r.on("GET", "/", (_req, _p, ctx) => (ctx.auth?.via === "session" ? file("dashboard.html", "text/html; charset=utf-8")() : redirect("/login")));
-  r.on("GET", "/login", (_req, _p, ctx) => (ctx.auth?.via === "session" ? redirect("/") : file("login.html", "text/html; charset=utf-8")()));
-  r.on("GET", "/assets/styles.css", file("styles.css", "text/css; charset=utf-8"));
-  r.on("GET", "/assets/favicon.svg", file("favicon.svg", "image/svg+xml"));
-  r.on("GET", "/assets/dashboard.js", file("dashboard.js"));
+  // Pages: "/" is sign-in when signed out and the builder when signed in.
+  const signedIn = (ctx: Ctx) => ctx.auth?.via === "session";
+  r.on("GET", "/", (_req, _p, ctx) => file(signedIn(ctx) ? "builder.html" : "login.html")());
+  r.on("GET", "/login", (_req, _p, ctx) => (signedIn(ctx) ? redirect("/") : file("login.html")()));
+  r.on("GET", "/forms", (_req, _p, ctx) => (signedIn(ctx) ? file("forms.html")() : redirect("/login?return_to=/forms")));
+  r.on("GET", "/connectors", (_req, _p, ctx) => (signedIn(ctx) ? file("connectors.html")() : redirect("/login?return_to=/connectors")));
+  for (const name of ["styles.css", "favicon.svg", "builder.js", "forms.js", "connectors.js"]) r.on("GET", "/assets/" + name, file(name));
   r.on("GET", "/healthz", async (_req, _p, ctx) => {
     await ctx.store.sql`SELECT 1`;
     return json({ ok: true, executorConfigured: !!ctx.cfg.executorScriptId });
@@ -216,7 +220,22 @@ function buildRouter() {
         requestedScopes: GOOGLE_SCOPES,
       },
       executorConfigured: !!ctx.cfg.executorScriptId,
+      features: { answerSuggestions: !!ctx.answers },
     });
+  });
+
+  // Optional answer suggestions (see answers.ts); 501 until a provider is configured.
+  r.on("POST", "/api/answers/suggest", async (req, _p, ctx) => {
+    requireAuth(ctx);
+    if (!ctx.answers) throw new AppError(501, "not_configured", "Answer suggestions aren't set up on this server");
+    const body = await readJson<{ questions?: unknown }>(req);
+    const qs = Array.isArray(body.questions) ? body.questions.slice(0, 200) : [];
+    const clean = qs
+      .map((q, i) => q as { index?: unknown; question?: unknown; options?: unknown; word?: unknown })
+      .filter((q) => typeof q.question === "string" && Array.isArray(q.options) && q.options.every((o) => typeof o === "string"))
+      .map((q, i) => ({ index: Number.isInteger(q.index) ? (q.index as number) : i, question: q.question as string, options: q.options as string[], word: typeof q.word === "string" ? q.word : undefined }));
+    if (!clean.length) throw new AppError(422, "no_questions", "Send questions with their options");
+    return json({ provider: ctx.answers.name, answers: await ctx.answers.suggest(clean) });
   });
 
   r.on("GET", "/api/forms", async (req, _p, ctx) => {
@@ -388,6 +407,7 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
   await store.migrate();
   const tokens = new TokenService(cfg, store, new Sealer(cfg.sessionSecret));
   const script = new AppsScriptClient(cfg);
+  const answers = answerProviderFromEnv(cfg);
   const router = buildRouter();
   const appOrigin = new URL(cfg.baseUrl).origin;
   const allowAnyOrigin = cfg.corsOrigins.includes("*");
@@ -459,7 +479,7 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
         return wantsHtml(req)
           ? PAGES.notFound()
           : withCors(json({ error: { code: "method_not_allowed", message: "Use " + m.allowed.join(", ") + "." } }, 405, { allow: m.allowed.join(", ") }));
-      return withCors(await m.handler(req, m.params, { cfg, store, tokens, script, auth, sessionToken }));
+      return withCors(await m.handler(req, m.params, { cfg, store, tokens, script, answers, auth, sessionToken }));
     } catch (e) {
       return wantsHtml(req) ? pageForError(e, req) : withCors(errorResponse(e));
     }

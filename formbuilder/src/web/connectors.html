@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Connectors · MCQ Form Builder</title>
+<link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="/"><img src="/assets/favicon.svg" width="22" height="22" alt="">MCQ Form Builder</a>
+    <nav class="nav" aria-label="Main">
+      <a href="/">New quiz</a>
+      <a href="/forms">Forms</a>
+      <a href="/connectors" aria-current="page">Connectors</a>
+    </nav>
+    <div class="account">
+      <img id="avatar" alt="" hidden referrerpolicy="no-referrer">
+      <span id="account"></span>
+      <button class="text-btn" id="signout" type="button">Sign out</button>
+    </div>
+  </div>
+</header>
+
+<main class="page narrow">
+  <div class="page-head"><h1 class="page-title">Connectors</h1></div>
+
+  <section class="panel section" aria-labelledby="claude-h">
+    <h2 id="claude-h">Claude</h2>
+    <div class="link-row">
+      <span class="link-label">URL</span>
+      <code class="link-url" id="mcp-url"></code>
+      <span id="mcp-copy"></span>
+    </div>
+    <p class="hint">Add it in Claude under Settings, Connectors, as a custom connector named <b>MCQ Form Builder</b></p>
+    <div class="rows" id="connections"></div>
+  </section>
+
+  <section class="panel section" aria-labelledby="api-h">
+    <h2 id="api-h">API tokens</h2>
+    <div class="row">
+      <input class="input grow" id="token-name" type="text" placeholder="Token name" aria-label="Token name" maxlength="60">
+      <button class="btn btn-primary" id="token-create" type="button">Create token</button>
+    </div>
+    <div class="secret" id="secret" hidden>
+      <span class="muted">Copy it now. It won't be shown again</span>
+      <div class="link-row"><code class="link-url" id="secret-value"></code><span id="secret-copy"></span></div>
+    </div>
+    <div class="rows" id="tokens"></div>
+    <details class="more">
+      <summary>Example request</summary>
+      <pre class="code" id="curl" tabindex="0"></pre>
+    </details>
+  </section>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script type="module" src="/assets/connectors.js"></script>
+</body>
+</html>

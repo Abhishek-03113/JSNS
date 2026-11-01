@@ -3,72 +3,62 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Sign in · MCQ Form Builder</title>
+<title>MCQ Form Builder</title>
 <link rel="icon" href="/assets/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-<div class="wrap">
-  <header class="bar">
-    <a class="brand" href="/">
-      <svg viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="6" fill="#181614"/><circle cx="7" cy="8" r="1.8" fill="none" stroke="#fffffd" stroke-width="1.3"/><circle cx="7" cy="14" r="1.8" fill="#4078e8"/><rect x="11" y="7.3" width="6" height="1.4" rx=".7" fill="#fffffd"/><rect x="11" y="13.3" width="6" height="1.4" rx=".7" fill="#fffffd"/></svg>
-      MCQ Form Builder
+<header class="top">
+  <div class="top-inner">
+    <a class="brand" href="/"><img src="/assets/favicon.svg" width="22" height="22" alt="">MCQ Form Builder</a>
+  </div>
+</header>
+<main class="page login">
+  <div class="login-text">
+    <h1 class="hero-title">Question paper in, graded Google Form out</h1>
+    <a class="btn btn-primary btn-lg" id="go" href="/auth/google">
+      <svg viewBox="0 0 18 18" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/><path fill="currentColor" opacity=".8" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/><path fill="currentColor" opacity=".6" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/><path fill="currentColor" opacity=".9" d="M9 3.6c1.3 0 2.5.5 3.5 1.4l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>
+      Continue with Google
     </a>
-    <div class="bar-note">Forms are made in your own Google account.</div>
-  </header>
-
-  <div class="head">
-    <h1>Sign in to make forms.<span class="soft">One Google account, every quiz.</span></h1>
-    <p class="lede">The builder runs Apps Script as you, so each graded quiz lands in your Google Drive. Sign in once, then send papers from the builder and track every form here.</p>
+    <div class="status error" id="status" aria-live="polite" hidden></div>
   </div>
 
-  <section aria-label="Sign in">
-    <div class="card">
-      <div class="signin panel">
-        <div class="signin-text">
-          <div class="signin-title">Continue with your Google account</div>
-          <div class="signin-sub">Google will ask you to allow each permission below. Keep them all ticked.</div>
-        </div>
-        <a class="btn btn-primary btn-google" id="go" href="/auth/google">
-          <svg viewBox="0 0 18 18" aria-hidden="true"><path fill="#fffffd" d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 0 1-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5Z"/><path fill="#fffffd" opacity=".8" d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 0 0 9 18Z"/><path fill="#fffffd" opacity=".6" d="M3.9 10.7a5.4 5.4 0 0 1 0-3.4V5H.9a9 9 0 0 0 0 8l3-2.3Z"/><path fill="#fffffd" opacity=".9" d="M9 3.6c1.3 0 2.5.5 3.5 1.4l2.6-2.6A9 9 0 0 0 .9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6Z"/></svg>
-          Continue with Google
-        </a>
+  <div class="login-preview" aria-hidden="true">
+    <article class="q">
+      <div class="q-head"><span class="q-num">7</span></div>
+      <p class="q-text">What is the simple past tense of the irregular verb "write"?</p>
+      <div class="opts">
+        <div class="opt static"><span class="lbl">A</span><span class="otext">written</span></div>
+        <div class="opt static"><span class="lbl">B</span><span class="otext">writing</span></div>
+        <div class="opt static"><span class="lbl">C</span><span class="otext">writes</span></div>
+        <div class="opt static is-correct"><span class="lbl">D</span><span class="otext">wrote</span><svg class="tick" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9"/><path d="M5 9.3l2.6 2.5L13 6.5"/></svg></div>
       </div>
-      <div class="status error" id="status" aria-live="polite" hidden></div>
-      <div class="scopes" aria-label="Permissions asked for">
-        <div class="scope"><code>forms</code><span>Create the quiz and read its response count</span></div>
-        <div class="scope"><code>script.projects</code><span>Save a form's script to your Apps Script projects</span></div>
-        <div class="scope"><code>script.deployments</code><span>Deploy the builder's executor script</span></div>
-        <div class="scope"><code>email, profile</code><span>Show who is signed in</span></div>
-      </div>
+    </article>
+    <div class="preview-links">
+      <div class="link-row"><span class="link-label">Students</span><span class="link-url">forms.gle/std6-tense-quiz</span></div>
     </div>
-  </section>
-
-  <footer>
-    <span>Google may say the app isn't verified while it is in testing. Click Advanced, then continue.</span>
-    <span>Signing out ends this browser's session only.</span>
-  </footer>
-</div>
+  </div>
+</main>
 <script>
 (function () {
   var MESSAGES = {
-    access_denied: "Sign-in was cancelled. Try again when you're ready.",
-    scope_missing: "Google didn't grant permission to manage Forms. Sign in again and keep every permission ticked.",
-    not_allowed: "This Google account isn't on the list of allowed users.",
-    state_mismatch: "That sign-in link expired. Start again.",
-    token_exchange: "Google didn't accept the sign-in. Try again.",
-    profile: "Your Google profile couldn't be read. Try again.",
-    email_unverified: "This Google account's email isn't verified.",
-    google_error: "Google reported an error. Try again.",
-    database_unavailable: "Google signed you in, but the app couldn't reach its database to save it. Wait a few seconds and try again.",
-    server_error: "Google signed you in, but the app couldn't finish. Try again; if it keeps happening, come back in a few minutes."
+    access_denied: "Sign-in was cancelled",
+    scope_missing: "Allow access to Google Forms to continue",
+    not_allowed: "This Google account isn't allowed here",
+    state_mismatch: "That sign-in link expired. Try again",
+    token_exchange: "Google didn't accept the sign-in. Try again",
+    profile: "Your Google profile couldn't be read. Try again",
+    email_unverified: "This Google account's email isn't verified",
+    google_error: "Google reported an error. Try again",
+    database_unavailable: "Couldn't save your sign-in. Try again in a moment",
+    server_error: "Sign-in couldn't finish. Try again"
   };
   var params = new URLSearchParams(location.search);
   var err = params.get('error');
-  if (err) { var s = document.getElementById('status'); s.textContent = MESSAGES[err] || 'Sign-in failed. Try again.'; s.hidden = false; }
+  if (err) { var s = document.getElementById('status'); s.textContent = MESSAGES[err] || 'Sign-in failed. Try again'; s.hidden = false; }
   var back = params.get('return_to');
   if (back && back.charAt(0) === '/' && back.charAt(1) !== '/') document.getElementById('go').href = '/auth/google?return_to=' + encodeURIComponent(back);
 })();

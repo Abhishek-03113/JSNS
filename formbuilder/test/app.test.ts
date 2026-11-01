@@ -111,8 +111,13 @@ describe("payload + script", () => {
 describe("sign-in gate", () => {
   test("pages and API need a session", async () => {
     const home = await call("GET", "/");
-    expect(home.status).toBe(302);
-    expect(home.headers.get("location")).toBe("/login");
+    expect(home.status).toBe(200);
+    expect(await home.text()).toContain("Continue with Google");
+    for (const page of ["/forms", "/connectors"]) {
+      const r = await call("GET", page);
+      expect(r.status).toBe(302);
+      expect(r.headers.get("location")).toBe("/login?return_to=" + page);
+    }
     expect((await call("GET", "/login")).status).toBe(200);
     const me = await call("GET", "/api/me");
     expect(me.status).toBe(401);
@@ -123,7 +128,14 @@ describe("sign-in gate", () => {
     const cookie = await signIn();
     const home = await call("GET", "/", { cookie });
     expect(home.status).toBe(200);
-    expect(await home.text()).toContain("Your forms.");
+    expect(await home.text()).toContain("New quiz");
+    expect(await (await call("GET", "/forms", { cookie })).text()).toContain('<h1 class="page-title">Forms</h1>');
+    expect(await (await call("GET", "/connectors", { cookie })).text()).toContain('<h1 class="page-title">Connectors</h1>');
+    for (const js of ["builder.js", "forms.js", "connectors.js"]) {
+      const r = await call("GET", "/assets/" + js);
+      expect(r.status).toBe(200);
+      expect(r.headers.get("content-type")).toContain("javascript");
+    }
     const me = (await (await call("GET", "/api/me", { cookie })).json()) as any;
     expect(me.user.email).toBe("teacher@example.com");
     expect(me.google.missingScopes).toEqual([]);
@@ -370,7 +382,7 @@ describe("claude.ai connector: OAuth + MCP", () => {
     const page = await call("GET", "/oauth/authorize?" + q, { cookie });
     expect(page.status).toBe(200);
     const html = await page.text();
-    expect(html).toContain("Allow Claude?");
+    expect(html).toContain("Allow Claude");
     expect(page.headers.get("x-frame-options")).toBe("DENY");
     // Allow.
     const allow = await app.fetch(
@@ -486,7 +498,7 @@ describe("graceful errors", () => {
     const page = await app.fetch(new Request(BASE + "/no-such-page", { headers: { accept: "text/html" } }));
     expect(page.status).toBe(404);
     expect(page.headers.get("content-type")).toContain("text/html");
-    expect(await page.text()).toContain("Page not found.");
+    expect(await page.text()).toContain("<h1>Page not found</h1>");
     const api = await call("GET", "/api/no-such-endpoint");
     expect(api.status).toBe(404);
     expect(((await api.json()) as any).error.code).toBe("not_found");
@@ -528,7 +540,7 @@ describe("graceful errors", () => {
     app.store.listGrants = original;
     expect(page.status).toBe(500);
     const html = await page.text();
-    expect(html).toContain("Something broke.");
+    expect(html).toContain("<h1>Something broke</h1>");
     expect(html).toMatch(/Reference: [A-Za-z0-9_-]{8}/);
     expect(html).not.toContain("boom");
   });
@@ -579,8 +591,45 @@ describe("messages by status family", () => {
     );
     expect(r.status).toBe(403);
     const html = await r.text();
-    expect(html).toContain("You can&#39;t do that here.");
+    expect(html).toContain("<h1>You can&#39;t do that here</h1>");
     expect(html).toContain("For your security, changes can only be made from this app&#39;s own pages.");
-    expect(html).toContain("Go to your forms");
+    expect(html).toContain(">Home</a>");
+  });
+});
+
+describe("builder parser (browser) matches the artifact", () => {
+  test("same quiz model answers and same payload for the example paper", async () => {
+    const lib = await import("../src/web/lib/mcq.ts");
+    const mine = lib.parseText(EXAMPLE);
+    const theirs = MCQ.parse(MCQ.splitLines(EXAMPLE));
+    expect(mine.title).toBe(theirs.title);
+    expect(mine.keyCount).toBe(theirs.keyCount);
+    const pick = (m: any) => m.items.map((i: any) => (i.q !== undefined ? [i.q, i.options.map((o: any) => o.label + o.text), i.answer, i.flags.map((f: any) => f.t)] : [i.section, i.help]));
+    expect(pick(mine)).toEqual(pick(theirs));
+    const st = { ...lib.defaultSettings(mine, "x"), points: 1 };
+    expect(lib.buildPayload(mine, st)).toEqual(MCQ.buildPayload(theirs, { ...st, points: "1" }));
+  });
+
+  test("sections, Marathi numbering, * marks and a key/mark conflict", async () => {
+    const lib = await import("../src/web/lib/mcq.ts");
+    const paper = ["विभाग अ", "(योग्य पर्याय निवडा)", "प्रश्न १. भारताची राजधानी कोणती?", "अ) मुंबई", "ब) दिल्ली", "क) पुणे", "", "2. Pick the verb", "A) run *", "B) blue", "", "ANSWER KEY", "1. ब", "2. B"].join("\n");
+    const m = lib.parseText(paper);
+    const theirs = MCQ.parse(MCQ.splitLines(paper));
+    const qs = m.items.filter(lib.isQuestion);
+    expect(m.items.filter(lib.isSection).map((s) => s.section)).toEqual(theirs.items.filter((i: any) => i.section !== undefined).map((i: any) => i.section));
+    expect(qs.map((q) => q.answer)).toEqual(theirs.items.filter((i: any) => i.q !== undefined).map((i: any) => i.answer));
+    expect(qs[0]!.answer).toBe(1);
+    expect(qs[1]!.flags.map((f) => f.t)).toContain("conflict");
+  });
+});
+
+describe("answer suggestions slot", () => {
+  test("off by default: /api/me says so and the endpoint answers 501", async () => {
+    const cookie = await signIn();
+    const me = (await (await call("GET", "/api/me", { cookie })).json()) as any;
+    expect(me.features).toEqual({ answerSuggestions: false });
+    const r = await call("POST", "/api/answers/suggest", { cookie, body: { questions: [{ index: 0, question: "Q", options: ["a", "b"] }] } });
+    expect(r.status).toBe(501);
+    expect(((await r.json()) as any).error.code).toBe("not_configured");
   });
 });

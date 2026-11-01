@@ -22,12 +22,12 @@ export interface ErrorPageOptions {
 }
 
 export function errorPage(o: ErrorPageOptions): Response {
-  const actions = (o.actions ?? [{ label: "Go to your forms", href: "/", primary: true }])
+  const actions = (o.actions ?? [{ label: "Home", href: "/", primary: true }])
     .map((a) => `<a class="btn ${a.primary ? "btn-primary" : "btn-grey"}" href="${esc(a.href)}">${esc(a.label)}</a>`)
     .join("");
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${esc(o.title)} · MCQ Form Builder</title>
+<title>${esc(o.title.replace(/\.$/, ""))} · MCQ Form Builder</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500&display=swap">
 <style>
@@ -39,9 +39,7 @@ body { margin: 0; background: var(--ground); color: var(--ink-title); font: 400 
 @media (min-width: 720px) { .wrap { padding-left: 32px; padding-right: 32px; } }
 .bar { display: flex; align-items: center; gap: 10px; padding-block: 18px; font: 500 13px/20px var(--sans); color: var(--ink); text-decoration: none; }
 .head { display: flex; flex-direction: column; gap: 14px; max-width: 620px; }
-h1 { margin: 0; font: 500 40px/44px var(--serif); letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
-h1 span { display: block; color: var(--ink-faint); }
-@media (max-width: 480px) { h1 { font-size: 34px; line-height: 38px; } }
+h1 { margin: 0; font: 500 32px/36px var(--serif); letter-spacing: -0.02em; color: var(--ink); text-wrap: balance; }
 p { margin: 0; color: var(--ink-body); max-width: 60ch; }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .btn { display: inline-flex; align-items: center; min-height: 36px; padding: 0 14px; border-radius: 8px; font: 500 13px/20px var(--sans); text-decoration: none; }
@@ -52,7 +50,7 @@ p { margin: 0; color: var(--ink-body); max-width: 60ch; }
 <body><div class="wrap">
   <a class="bar" href="/"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1" y="1" width="20" height="20" rx="6" fill="#181614"/><circle cx="7" cy="8" r="1.8" fill="none" stroke="#fffffd" stroke-width="1.3"/><circle cx="7" cy="14" r="1.8" fill="#4078e8"/><rect x="11" y="7.3" width="6" height="1.4" rx=".7" fill="#fffffd"/><rect x="11" y="13.3" width="6" height="1.4" rx=".7" fill="#fffffd"/></svg>MCQ Form Builder</a>
   <div class="head">
-    <h1>${esc(o.title)}<span>${esc(o.soft)}</span></h1>
+    <h1>${esc(o.title.replace(/\.$/, ""))}</h1>
     <p>${esc(o.message)}</p>
     <div class="actions">${actions}</div>
   </div>
@@ -85,30 +83,30 @@ type Copy = { title: string; soft: string; message: string };
  * browser normally follows on its own; the 3xx copy only shows if a redirect can't be followed.
  */
 const FAMILY: Record<"3" | "4" | "5", Copy> = {
-  "3": { title: "This page has moved.", soft: "Follow the link to continue.", message: "The address you used now points somewhere else. Use the button below to carry on." },
-  "4": { title: "That request didn't work.", soft: "Something about it needs changing.", message: "Check the link or what you entered, then try again." },
-  "5": { title: "Something broke.", soft: "It's on our side, not yours.", message: "The request couldn't be finished. Try again; if it keeps happening, come back in a few minutes." },
+  "3": { title: "This page has moved.", soft: "Follow the link to continue.", message: "This address points somewhere else now." },
+  "4": { title: "That request didn't work.", soft: "Something about it needs changing.", message: "Check the link or what you entered." },
+  "5": { title: "Something broke.", soft: "It's on our side, not yours.", message: "Try again in a moment." },
 };
 
 const BY_STATUS: Record<number, Copy> = {
-  301: { title: "This page has moved.", soft: "For good.", message: "The address changed permanently. Use the button below and update any bookmark." },
-  302: { title: "Taking you somewhere else.", soft: "Just a moment.", message: "This page sends you on to another one. Use the button below if nothing happens." },
-  304: { title: "Nothing new here.", soft: "Your copy is up to date.", message: "The page hasn't changed since you last loaded it." },
-  400: { title: "That request didn't make sense.", soft: "Something in it was malformed.", message: "The link or form sent something the app couldn't read. Go back and try again." },
-  401: { title: "Sign in to continue.", soft: "This page needs your Google account.", message: "Your session has ended or you haven't signed in yet." },
-  403: { title: "You can't do that here.", soft: "Your account doesn't have access.", message: "This action isn't allowed for your account, or it came from another site. Go back to your forms and try from there." },
-  404: { title: "Page not found.", soft: "Nothing lives at this address.", message: "The link may be old or mistyped. Your forms are on the dashboard." },
-  405: { title: "Page not found.", soft: "This address doesn't do that.", message: "The page exists but can't be used this way. Start again from your forms." },
+  301: { title: "This page has moved.", soft: "For good.", message: "Update any bookmark to the new address." },
+  302: { title: "Taking you somewhere else.", soft: "Just a moment.", message: "Continue if nothing happens." },
+  304: { title: "Nothing new here.", soft: "Your copy is up to date.", message: "Nothing changed since your last visit." },
+  400: { title: "That request didn't make sense.", soft: "Something in it was malformed.", message: "Go back and try again." },
+  401: { title: "Sign in to continue.", soft: "This page needs your Google account.", message: "Your session has ended." },
+  403: { title: "You can't do that here.", soft: "Your account doesn't have access.", message: "Not allowed for your account, or the request came from another site." },
+  404: { title: "Page not found.", soft: "Nothing lives at this address.", message: "The link may be old or mistyped." },
+  405: { title: "Page not found.", soft: "This address doesn't do that.", message: "This address doesn't do that." },
   408: { title: "That took too long.", soft: "The request timed out before it finished.", message: "Check your connection and try again." },
-  409: { title: "That clashes with something.", soft: "It already exists or was already done.", message: "Refresh to see the latest state before trying again." },
-  410: { title: "This is gone.", soft: "It was removed for good.", message: "The thing this link pointed to no longer exists." },
-  413: { title: "That's too large.", soft: "It's over the size limit.", message: "Split it into smaller parts and try again." },
-  422: { title: "Some details need fixing.", soft: "The app couldn't use what was sent.", message: "Check what you entered and try again." },
-  429: { title: "Too many requests.", soft: "Give it a moment.", message: "You've sent a lot of requests in a short time. Wait a few seconds, then try again." },
+  409: { title: "That clashes with something.", soft: "It already exists or was already done.", message: "Refresh to see the latest." },
+  410: { title: "This is gone.", soft: "It was removed for good.", message: "It was removed." },
+  413: { title: "That's too large.", soft: "It's over the size limit.", message: "Split it into smaller parts." },
+  422: { title: "Some details need fixing.", soft: "The app couldn't use what was sent.", message: "Check what you entered." },
+  429: { title: "Too many requests.", soft: "Give it a moment.", message: "Wait a few seconds, then try again." },
   500: FAMILY["5"],
-  502: { title: "Google didn't answer properly.", soft: "A service we depend on had a problem.", message: "The app reached Google, but the reply wasn't usable. Try again in a minute." },
-  503: { title: "Temporarily unavailable.", soft: "Usually this clears up in a moment.", message: "The app can't handle requests right now. Nothing was changed; try again shortly." },
-  504: { title: "That took too long.", soft: "A service we depend on didn't answer in time.", message: "Nothing may have been saved. Wait a moment and try again." },
+  502: { title: "Google didn't answer properly.", soft: "A service we depend on had a problem.", message: "Try again in a minute." },
+  503: { title: "Temporarily unavailable.", soft: "Usually this clears up in a moment.", message: "Nothing was changed. Try again shortly." },
+  504: { title: "That took too long.", soft: "A service we depend on didn't answer in time.", message: "Check before trying again." },
 };
 
 /** Copy for any status: the specific code if known, otherwise its family. */
@@ -122,8 +120,8 @@ export function statusCopy(status: number): Copy {
 function familyActions(status: number, location?: string): ErrorPageAction[] {
   if (status >= 300 && status < 400) return [{ label: "Continue", href: location || "/", primary: true }];
   if (status === 401) return [{ label: "Sign in", href: "/login", primary: true }];
-  if (status >= 500) return [{ label: "Try again", href: "", primary: true }, { label: "Go to your forms", href: "/" }];
-  return [{ label: "Go to your forms", href: "/", primary: true }];
+  if (status >= 500) return [{ label: "Try again", href: "", primary: true }, { label: "Home", href: "/" }];
+  return [{ label: "Home", href: "/", primary: true }];
 }
 
 /** A page for any status, with optional specific detail replacing the generic message. */
@@ -142,13 +140,13 @@ export const PAGES = {
   notFound: () => statusPage(404),
   serverError: (reference?: string) => statusPage(500, undefined, { reference }),
   databaseUnavailable: () =>
-    statusPage(503, "The app couldn't connect to its database just now, so nothing was changed. Wait a few seconds and try again."),
+    statusPage(503, "Nothing was changed. Try again in a few seconds."),
   notSetUp: () =>
     errorPage({
       status: 503,
       title: "Not set up yet.",
       soft: "The app is missing its settings.",
-      message: "Whoever runs MCQ Form Builder still needs to add its Google and database settings. Once they do, this page works without any change on your side.",
+      message: "The app's settings haven't been added yet.",
       actions: [{ label: "Try again", href: "", primary: true }],
     }),
 };

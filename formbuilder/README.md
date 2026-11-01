@@ -1,20 +1,43 @@
-# MCQ Form Builder API
+# MCQ Form Builder
 
-A Bun + TypeScript API behind Google sign-in. It takes the form payload the
-[MCQ Form Builder artifact](https://claude.ai/artifact/C4FABJbasGdXieEFkRzgiz) builds
-(`MCQ.buildPayload()`), runs Apps Script **as the signed-in Google user** to create the graded
-Google Form in their Drive, and stores each script with its edit, student and response links in
-Postgres (Supabase works). The web frontend is only the Google sign-in page and a dashboard of the
-forms made.
+A Bun + TypeScript app behind Google sign-in that turns a teacher's question paper into a graded
+Google Forms quiz. It reads the paper, lets the teacher check the answers, then runs Apps Script
+**as the signed-in Google user**, so the form is created in their own Drive. Every form is kept in
+Postgres (Supabase works) with its edit, student and response links.
 
-Parsing question papers stays in the artifact. This service only validates the payload, executes
-Apps Script, and keeps the record.
+## Pages
+
+| Path | What it is |
+| --- | --- |
+| `/` | Sign-in when signed out. Signed in: the builder. Drop a `.docx`/`.txt` paper or paste text, check the answers in the scrolling review (tap an option to set it, Edit to fix text), set the form options, **Make form**, and get the edit and student links |
+| `/forms` | Read-only list of the forms made, with response counts, the two links, and each form's questions |
+| `/connectors` | The Claude connector URL and connected apps, and API tokens for scripts |
+
+The paper reader runs in the browser (`src/web/lib/mcq.ts`) and is a port of the
+[MCQ Form Builder artifact](https://claude.ai/artifact/C4FABJbasGdXieEFkRzgiz)'s parser: numbered
+questions in English or Marathi, options on one line or many, an answer key at the end, answers
+marked with `*` or ✓, section headings and underlined words. It builds the same payload as the
+artifact's `MCQ.buildPayload()`, so the artifact, the app and the API all make identical forms.
 
 ```
-artifact ──POST /api/forms (Bearer token)──▶ API ──scripts.run (user's OAuth token)──▶ executor Apps Script ──▶ Google Form
-                                              │
-                                              └──▶ Postgres: forms(script, payload, edit/published/responses URLs, counts)
+browser (builder) ──┐
+artifact (connector)┼─▶ API ──scripts.run (user's OAuth token)──▶ executor Apps Script ──▶ Google Form
+API token (scripts) ┘    │
+                         └──▶ Postgres: forms(payload, script, edit/student/response links, counts)
 ```
+
+## Answer suggestions (optional, not configured)
+
+The artifact can fill in missing answers and double-check the key with Claude. The app doesn't do
+that yet: questions without an answer key stay unanswered until the teacher taps the right
+option, and the form warns before making them (they score 0).
+
+There is a slot for it. `src/answers.ts` defines `AnswerProvider`
+(`suggest(questions) → [{ index, answer, why? }]`). When `answerProviderFromEnv()` returns one,
+`/api/me` reports `features.answerSuggestions: true`, the builder shows **Suggest answers**, and
+`POST /api/answers/suggest` calls it; until then that endpoint answers `501 not_configured`.
+Adding an LLM provider later means implementing that interface (for example with the Claude API)
+and reading its key from an environment variable. Nothing else has to change.
 
 ## How Apps Script is executed
 
@@ -88,7 +111,7 @@ this app provides itself:
 
 Tools: `get_account` (who is signed in, whether forms can be made), `create_google_form`
 (`{ payload }`, returns the edit and student links), `list_google_forms`. Connector tokens only
-work on `/mcp`; the dashboard lists connected apps and can disconnect them.
+work on `/mcp`; the Connectors page lists connected apps and can disconnect them.
 
 To connect: Claude → Settings → Connectors → Add custom connector, name it **MCQ Form Builder**
 (the artifact calls the connector by this name) and use the URL `<BASE_URL>/mcp`.
@@ -101,7 +124,7 @@ one-time setup by whoever hosts the app; teachers never see them.
 
 ## API
 
-Browser calls use the session cookie. Everything else uses an API token made on the dashboard:
+Browser calls use the session cookie. Everything else uses an API token made on the Connectors page:
 `Authorization: Bearer fbk_...`. Cross-origin callers must be listed in `CORS_ORIGINS` and use a
 token; cookies are never accepted cross-origin.
 
@@ -138,7 +161,7 @@ carries a warning). Invalid payloads get `422` with every problem in `error.deta
 Each made form carries the two links the script returns: `editUrl` (the teacher's editor) and
 `publishedUrl` (the student form). The executor also asks Google for a `forms.gle` short link
 (`shortUrl`); `studentUrl` is that short link when there is one, otherwise `publishedUrl`. The
-dashboard shows both links as clickable URLs with Copy and Open in new tab.
+app shows both links as clickable URLs with Copy and Open in new tab.
 
 Errors always look like `{ "error": { "code", "message", "details"? } }`. A failed Apps Script run
 is stored with `status: "failed"` and returned in `error.details.form`.
@@ -155,5 +178,5 @@ against a fake Google (`test/mockGoogle.ts`), and check that the API's stored sc
 what the artifact's own `MCQ.buildScript()` produces (`test/fixtures/` holds the artifact's MCQ core).
 
 `bun run dev:mock` runs the whole app against the fake Google, so you can click through sign-in and
-the dashboard without any Google setup. The test database is wiped on every test run, so don't point
+the pages without any Google setup. The test database is wiped on every test run, so don't point
 `TEST_DATABASE_URL` at real data.

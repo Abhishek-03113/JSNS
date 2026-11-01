@@ -1,5 +1,5 @@
 /**
- * Writes src/generated/assets.ts: the pages, stylesheet, dashboard script (transpiled to JS) and SQL
+ * Writes src/generated/assets.ts: the pages, stylesheet, browser scripts (bundled per page) and SQL
  * migrations as plain string constants. Bundlers such as Vercel's then carry them with no
  * file reads or text-import support needed at runtime.
  *
@@ -13,18 +13,24 @@ const root = join(import.meta.dir, "..");
 const web = join(root, "src", "web");
 const OUT = join(root, "src", "generated", "assets.ts");
 
+/** Pages served as-is and the browser scripts bundled for them (one bundle per page). */
+const PAGES = ["login.html", "builder.html", "forms.html", "connectors.html"];
+const SCRIPTS = ["builder.ts", "forms.ts", "connectors.ts"];
+
+async function bundle(entry: string): Promise<string> {
+  const out = await Bun.build({ entrypoints: [join(web, entry)], target: "browser", minify: true });
+  if (!out.success) throw new Error(`Bundling ${entry} failed:\n` + out.logs.join("\n"));
+  return out.outputs[0]!.text();
+}
+
 export async function renderAssets(): Promise<string> {
   const read = (p: string) => Bun.file(p).text();
-  const dashboardJs = new Bun.Transpiler({ loader: "ts", target: "browser", minifyWhitespace: true }).transformSync(
-    await read(join(web, "dashboard.ts")),
-  );
   const assets: Record<string, { body: string; type: string }> = {
-    "dashboard.html": { body: await read(join(web, "dashboard.html")), type: "text/html; charset=utf-8" },
-    "login.html": { body: await read(join(web, "login.html")), type: "text/html; charset=utf-8" },
     "styles.css": { body: await read(join(web, "styles.css")), type: "text/css; charset=utf-8" },
     "favicon.svg": { body: await read(join(web, "favicon.svg")), type: "image/svg+xml" },
-    "dashboard.js": { body: dashboardJs, type: "text/javascript; charset=utf-8" },
   };
+  for (const page of PAGES) assets[page] = { body: await read(join(web, page)), type: "text/html; charset=utf-8" };
+  for (const script of SCRIPTS) assets[script.replace(/\.ts$/, ".js")] = { body: await bundle(script), type: "text/javascript; charset=utf-8" };
   const migrationsDir = join(root, "migrations");
   const migrations = [];
   for (const name of readdirSync(migrationsDir).filter((f) => f.endsWith(".sql")).sort()) {

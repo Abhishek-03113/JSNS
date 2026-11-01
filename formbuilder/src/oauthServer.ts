@@ -48,27 +48,25 @@ function consentPage(p: { clientName: string; email: string; redirectHost: strin
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@500&family=Inter:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/assets/styles.css"></head>
-<body><div class="wrap">
-  <header class="bar"><span class="brand"><img src="/assets/favicon.svg" width="22" height="22" alt="">MCQ Form Builder</span>
-  <div class="bar-note">Signed in as ${esc(p.email)}</div></header>
-  <div class="head">
-    <h1>Allow ${esc(p.clientName)}?<span class="soft">It will make quizzes as you.</span></h1>
-    <p class="lede">${esc(p.clientName)} is asking to use MCQ Form Builder with your Google account. You can disconnect it at any time from your forms dashboard.</p>
-  </div>
-  <section aria-label="What it can do"><div class="card">
-    <h3 class="card-title">It will be able to</h3>
-    <ul class="steps bullets">
-      <li><span><b>Create graded Google Forms</b> in your Google Drive from question papers you send.</span></li>
-      <li><span><b>List the forms</b> made through MCQ Form Builder, with their edit and student links.</span></li>
+<body>
+<header class="top"><div class="top-inner"><span class="brand"><img src="/assets/favicon.svg" width="22" height="22" alt="">MCQ Form Builder</span>
+<div class="account"><span>${esc(p.email)}</span></div></div></header>
+<main class="page narrow">
+  <section class="panel section consent">
+    <h1 class="page-title">Allow ${esc(p.clientName)}</h1>
+    <ul class="grants">
+      <li>Create graded Google Forms in your Drive</li>
+      <li>See the forms made here, with their links</li>
     </ul>
-    <p class="card-sub" style="margin:0">It can't read your other Google files or forms. After you allow, you go back to ${esc(p.redirectHost)}.</p>
-    ${p.formsReady ? "" : '<div class="warnbar">Google permission to manage Forms is missing for your account, so making forms will fail until you <a href="/auth/google">sign in again</a> and allow it.</div>'}
-    <form method="post" action="/oauth/authorize" class="actions">${hidden}
+    ${p.formsReady ? "" : '<div class="warn-line">Google Forms access is missing. <a href="/auth/google">Sign in again</a> first</div>'}
+    <form method="post" action="/oauth/authorize" class="row">${hidden}
       <button class="btn btn-primary" type="submit" name="decision" value="allow">Allow</button>
-      <button class="btn btn-grey" type="submit" name="decision" value="deny">Cancel</button>
+      <button class="btn btn-secondary" type="submit" name="decision" value="deny">Cancel</button>
+      <span class="muted">Returns you to ${esc(p.redirectHost)}</span>
     </form>
-  </div></section>
-</div></body></html>`;
+  </section>
+</main>
+</body></html>`;
 }
 
 /** Checks an authorize request; returns the client and normalized params, or a reason it can't continue. */
@@ -94,10 +92,10 @@ async function checkAuthorize(ctx: Ctx, q: URLSearchParams) {
 }
 
 function textPage(status: number, message: string) {
-  return new Response(`<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/assets/styles.css"><div class="wrap"><div class="head" style="padding-top:48px"><h1>Can't connect.<span class="soft">${esc(message)}</span></h1></div></div>`, {
-    status,
-    headers: { "content-type": "text/html; charset=utf-8" },
-  });
+  return new Response(
+    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Can't connect · MCQ Form Builder</title><link rel="stylesheet" href="/assets/styles.css"><main class="page narrow"><section class="panel section"><h1 class="page-title">Can't connect</h1><p class="hint">${esc(message)}</p></section></main>`,
+    { status, headers: { "content-type": "text/html; charset=utf-8" } },
+  );
 }
 
 export function registerOAuthRoutes(r: Router<Ctx>) {
