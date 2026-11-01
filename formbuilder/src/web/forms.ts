@@ -163,9 +163,9 @@ $("refresh").onclick = async () => {
   }
 };
 
-initShell()
-  .then(() => api<{ forms: FormItem[] }>("GET", "/api/forms?limit=200"))
-  .then((r) => {
+// Who is signed in and the list load together, not one after the other.
+Promise.all([initShell(), api<{ forms: FormItem[] }>("GET", "/api/forms?limit=200")])
+  .then(([, r]) => {
     state.forms = r.forms;
     render();
   })

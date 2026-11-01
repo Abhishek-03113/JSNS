@@ -28,50 +28,76 @@
 </header>
 
 <main class="page">
-  <div class="page-head">
-    <h1 class="page-title">New quiz</h1>
-    <div class="paper" id="paper" hidden>
-      <span class="file-chip" id="file-name"></span>
-      <span class="example-tag" id="example-tag" hidden>Example</span>
-      <button class="text-btn" id="replace" type="button">Replace</button>
+  <section class="start hero" id="start" aria-labelledby="start-h">
+  <div class="hero-copy">
+    <h1 class="hero-title" id="start-h">Turn a question paper into a graded Google Form</h1>
+    <div class="drop" id="drop">
+      <div class="drop-title">Drop a question paper</div>
+      <div class="muted">.docx or .txt</div>
+      <div class="row">
+        <button class="btn btn-primary" id="pick" type="button">Choose file</button>
+        <button class="btn btn-secondary" id="paste-open" type="button">Paste text</button>
+      </div>
+      <input id="file" type="file" accept=".docx,.txt,.md,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+    </div>
+    <div class="paste" id="paste" hidden>
+      <textarea id="paste-text" aria-label="Question paper text" placeholder="Q1. Which sentence is in the simple present tense?&#10;A) She is playing the piano.&#10;B) They walk to school every day.&#10;&#10;ANSWER KEY:&#10;1. B"></textarea>
+      <div class="row end">
+        <button class="btn btn-secondary" id="paste-cancel" type="button">Cancel</button>
+        <button class="btn btn-primary" id="paste-go" type="button">Read text</button>
+      </div>
+    </div>
+    <div class="status error" id="status" aria-live="polite" hidden></div>
+    <div class="row start-links">
+      <button class="text-btn" id="example" type="button">See an example</button>
+      <button class="text-btn" id="back" type="button" hidden>Back to preview</button>
     </div>
   </div>
+  <div class="hero-visual" aria-hidden="true">
+    <div class="sheet">
+      <div class="sheet-head"><span>Std 6</span><span>Tense quiz</span><span>20 marks</span></div>
+      <p>Q7. What is the simple past tense of "write"?</p>
+      <p class="sheet-o">A) written&ensp;B) writing&ensp;C) writes&ensp;D) wrote</p>
+      <p>Q8. Pick the present continuous form for "I".</p>
+      <p class="sheet-o">A) I am reading&ensp;B) I is reading</p>
+      <p class="sheet-key">Answer key&ensp;7. D&ensp;8. A</p>
+    </div>
+    <div class="formcard">
+      <div class="formcard-title">Std 6 Tense Quiz</div>
+      <div class="formcard-q">7. What is the simple past tense of "write"?</div>
+      <div class="formcard-opts">
+        <span class="fo">written</span><span class="fo">writing</span><span class="fo">writes</span><span class="fo on">wrote<svg class="tick" viewBox="0 0 18 18"><circle cx="9" cy="9" r="9"/><path d="M5 9.3l2.6 2.5L13 6.5"/></svg></span>
+      </div>
+      <div class="formcard-foot"><span class="dot"></span>forms.gle/std6-tense-quiz</div>
+    </div>
+  </div>
+  </section>
 
-  <div class="builder">
-    <section class="builder-main" aria-label="Question paper">
-      <div class="drop" id="drop" hidden>
-        <div class="drop-title">Drop a question paper</div>
-        <div class="muted">.docx or .txt</div>
-        <div class="row">
-          <button class="btn btn-primary" id="pick" type="button">Choose file</button>
-          <button class="btn btn-secondary" id="paste-open" type="button">Paste text</button>
-          <button class="text-btn" id="drop-cancel" type="button" hidden>Cancel</button>
-        </div>
-        <input id="file" type="file" accept=".docx,.txt,.md,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+  <section class="workspace" id="workspace" aria-label="Preview" hidden>
+    <div class="page-head">
+      <div class="paper">
+        <h1 class="page-title" id="file-name"></h1>
+        <span class="example-tag" id="example-tag" hidden>Example</span>
       </div>
-      <div class="paste" id="paste" hidden>
-        <textarea id="paste-text" aria-label="Question paper text" placeholder="Q1. Which sentence is in the simple present tense?&#10;A) She is playing the piano.&#10;B) They walk to school every day.&#10;&#10;ANSWER KEY:&#10;1. B"></textarea>
-        <div class="row end">
-          <button class="btn btn-secondary" id="paste-cancel" type="button">Cancel</button>
-          <button class="btn btn-primary" id="paste-go" type="button">Read text</button>
-        </div>
-      </div>
-      <div class="status error" id="status" aria-live="polite" hidden></div>
+      <button class="btn btn-secondary" id="replace" type="button">Start over</button>
+    </div>
 
-      <div class="review" id="review" hidden>
-        <div class="review-bar">
-          <div class="tabs" role="tablist" aria-label="Show">
-            <button class="tab" role="tab" id="tab-all" aria-selected="true" type="button">All</button>
-            <button class="tab" role="tab" id="tab-flag" aria-selected="false" type="button">Needs a look</button>
+    <div class="builder">
+      <section class="builder-main" aria-label="Questions">
+        <div class="review" id="review">
+          <div class="review-bar">
+            <div class="tabs" role="tablist" aria-label="Show">
+              <button class="tab" role="tab" id="tab-all" aria-selected="true" type="button">All</button>
+              <button class="tab" role="tab" id="tab-flag" aria-selected="false" type="button">Needs a look</button>
+            </div>
+            <div class="row">
+              <button class="btn btn-secondary" id="suggest" type="button" hidden>Suggest answers</button>
+              <span class="muted num" id="review-meta"></span>
+            </div>
           </div>
-          <div class="row">
-            <button class="btn btn-secondary" id="suggest" type="button" hidden>Suggest answers</button>
-            <span class="muted num" id="review-meta"></span>
-          </div>
+          <div class="qscroll" id="list" tabindex="0" aria-label="Questions"></div>
         </div>
-        <div class="qscroll" id="list" tabindex="0" aria-label="Questions"></div>
-      </div>
-    </section>
+      </section>
 
     <aside class="builder-side panel" aria-label="Form">
       <div class="field"><label for="s-title">Title</label><input id="s-title" type="text" autocomplete="off"></div>
@@ -90,12 +116,13 @@
       </details>
       <div class="side-foot">
         <div class="warn-line" id="warn" hidden></div>
-        <button class="btn btn-primary wide" id="make" type="button" disabled>Make form</button>
+        <button class="btn btn-primary wide" id="make" type="button" disabled>Create Google Form</button>
         <div class="status" id="make-status" aria-live="polite" hidden></div>
         <div class="made" id="made" hidden></div>
       </div>
     </aside>
-  </div>
+    </div>
+  </section>
 </main>
 <div class="toast" id="toast" role="status" hidden></div>
 <script type="module" src="/assets/builder.js"></script>

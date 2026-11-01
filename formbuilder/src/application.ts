@@ -138,16 +138,24 @@ async function ownForm(ctx: Ctx, user: User, id: string): Promise<FormRecord> {
 
 function buildRouter() {
   const r = new Router<Ctx>();
-  const file = (name: string) => () =>
-    new Response(ASSETS[name]!.body, { headers: { "content-type": ASSETS[name]!.type, "cache-control": "no-cache" } });
+  /**
+   * Pages are never cached (they depend on who is signed in). Assets requested with their content
+   * hash (?v=…, added by the embed step) are immutable: cached for a year by browsers and the CDN.
+   */
+  const file = (name: string) => (req: Request) => {
+    const asset = ASSETS[name]!;
+    const v = new URL(req.url).searchParams.get("v");
+    const cache = v && v === asset.hash ? "public, max-age=31536000, s-maxage=31536000, immutable" : "no-cache";
+    return new Response(asset.body, { headers: { "content-type": asset.type, "cache-control": cache, etag: `"${asset.hash}"` } });
+  };
 
   // Pages: the dashboard sits behind Google sign-in
   // Pages: "/" is sign-in when signed out and the builder when signed in.
   const signedIn = (ctx: Ctx) => ctx.auth?.via === "session";
-  r.on("GET", "/", (_req, _p, ctx) => file(signedIn(ctx) ? "builder.html" : "login.html")());
-  r.on("GET", "/login", (_req, _p, ctx) => (signedIn(ctx) ? redirect("/") : file("login.html")()));
-  r.on("GET", "/forms", (_req, _p, ctx) => (signedIn(ctx) ? file("forms.html")() : redirect("/login?return_to=/forms")));
-  r.on("GET", "/connectors", (_req, _p, ctx) => (signedIn(ctx) ? file("connectors.html")() : redirect("/login?return_to=/connectors")));
+  r.on("GET", "/", (_req, _p, ctx) => file(signedIn(ctx) ? "builder.html" : "login.html")(_req));
+  r.on("GET", "/login", (_req, _p, ctx) => (signedIn(ctx) ? redirect("/") : file("login.html")(_req)));
+  r.on("GET", "/forms", (_req, _p, ctx) => (signedIn(ctx) ? file("forms.html")(_req) : redirect("/login?return_to=/forms")));
+  r.on("GET", "/connectors", (_req, _p, ctx) => (signedIn(ctx) ? file("connectors.html")(_req) : redirect("/login?return_to=/connectors")));
   for (const name of ["styles.css", "favicon.svg", "builder.js", "forms.js", "connectors.js"]) r.on("GET", "/assets/" + name, file(name));
   r.on("GET", "/healthz", async (_req, _p, ctx) => {
     await ctx.store.sql`SELECT 1`;
@@ -461,7 +469,9 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
         // No cookies here: these are called by OAuth/MCP clients, not the browser session.
       } else {
         sessionToken = parseCookies(req)[SESSION_COOKIE] || null;
-        const user = sessionToken ? await store.userForSession(sessionToken) : null;
+        // Static files never need to know who is asking: skip the session lookup (a database trip).
+        const needsUser = !path.startsWith("/assets/") && path !== "/healthz";
+        const user = sessionToken && needsUser ? await store.userForSession(sessionToken) : null;
         if (user) auth = { user, via: "session" };
         // Cookie-authenticated writes must come from this site (CSRF guard).
         if (!["GET", "HEAD"].includes(req.method)) {

@@ -37,6 +37,8 @@ const state = {
   making: false,
 };
 let me: Me | null = null;
+/** Question number for each item index, from the last full list render. */
+const numbers = new Map<number, number>();
 
 const CHIP: Partial<Record<FlagType, string>> = {
   conflict: "Key vs *",
@@ -66,10 +68,14 @@ function setStatus(text: string | null) {
   s.hidden = !text;
 }
 
-function showDrop(open: boolean) {
-  $("drop").hidden = !open;
-  $("drop-cancel").hidden = !state.model;
-  if (!open) $("paste").hidden = true;
+/** Start screen (upload) or workspace (preview + form). */
+function showStart(open: boolean) {
+  $("start").hidden = !open;
+  $("workspace").hidden = open;
+  $("back").hidden = !state.model;
+  $("paste").hidden = true;
+  if (!open) setStatus(null);
+  window.scrollTo(0, 0);
 }
 
 function loadModel(model: QuizModel, name: string, example: boolean) {
@@ -87,12 +93,11 @@ function loadModel(model: QuizModel, name: string, example: boolean) {
   $<HTMLInputElement>("s-title").value = st.title;
   $<HTMLTextAreaElement>("s-desc").value = st.description;
   $<HTMLTextAreaElement>("s-confirm").value = st.confirm;
-  $("file-name").textContent = name;
+  $("file-name").textContent = example ? "Example quiz" : name;
   $("example-tag").hidden = !example;
-  $("paper").hidden = false;
-  $("review").hidden = false;
   $("made").hidden = true;
-  showDrop(false);
+  makeStatus(null);
+  showStart(false);
   renderAll();
 }
 
@@ -140,7 +145,8 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
     edit.setAttribute("aria-label", "Edit question " + no);
     edit.onclick = () => {
       state.editing.add(idx);
-      renderList();
+      updateCard(idx);
+      $("q-" + idx)?.querySelector<HTMLElement>("textarea")?.focus();
     };
     head.append(edit);
   }
@@ -173,7 +179,7 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
       });
       q.flags = q.flags.filter((f) => f.t !== "odd" && f.t !== "dupe" && !(f.t === "few" && q.options.length >= 2));
       state.editing.delete(idx);
-      renderAll();
+      updateCard(idx);
     };
     const add = el("button", "text-btn", "Add option");
     add.type = "button";
@@ -181,7 +187,9 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
       const used = q.options.map((o) => o.label);
       const set = [["A", "B", "C", "D", "E", "F"], ["a", "b", "c", "d", "e", "f"], ["अ", "ब", "क", "ड", "इ"]].find((s) => used.every((u) => s.includes(u))) || ["A", "B", "C", "D", "E", "F"];
       q.options.push({ label: set.find((l) => !used.includes(l)) || String(q.options.length + 1), text: "" });
-      renderList();
+      updateCard(idx);
+      const inputs = $("q-" + idx)?.querySelectorAll<HTMLInputElement>("input.edit-field");
+      inputs?.[inputs.length - 1]?.focus();
     };
     foot.append(doneBtn, add);
     card.append(foot);
@@ -207,7 +215,7 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
       q.reviewed = true;
       q.source = "you";
       q.flags = q.flags.filter((f) => !["noanswer", "conflict"].includes(f.t));
-      renderAll(idx);
+      updateCard(idx, true);
     };
     opts.append(b);
   });
@@ -225,7 +233,7 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
     ok.type = "button";
     ok.onclick = () => {
       q.reviewed = true;
-      renderAll(idx);
+      updateCard(idx, true);
     };
     foot.append(ok);
     card.append(foot);
@@ -233,11 +241,13 @@ function renderCard(q: Question, idx: number, no: number): HTMLElement {
   return card;
 }
 
-function renderList(focusIdx?: number) {
+/** Rebuilds the whole list (new paper, tab switch). Built off-document, inserted once. */
+function renderList() {
   const list = $("list");
   const keep = list.scrollTop;
-  list.textContent = "";
-  if (!state.model) return;
+  numbers.clear();
+  if (!state.model) return list.replaceChildren();
+  const frag = document.createDocumentFragment();
   let no = 0;
   let shown = 0;
   state.model.items.forEach((it, idx) => {
@@ -246,17 +256,32 @@ function renderList(focusIdx?: number) {
       const row = el("div", "sec-row");
       row.append(el("h3", undefined, it.section));
       if (it.help) row.append(el("p", undefined, it.help));
-      list.append(row);
+      frag.append(row);
       return;
     }
-    no++;
+    numbers.set(idx, ++no);
     if (state.filter === "flag" && !needsLook(it)) return;
-    list.append(renderCard(it, idx, no));
+    frag.append(renderCard(it, idx, no));
     shown++;
   });
-  if (!shown) list.append(el("div", "empty", state.filter === "flag" ? "Nothing needs a look" : "No questions"));
+  if (!shown) frag.append(el("div", "empty", state.filter === "flag" ? "Nothing needs a look" : "No questions"));
+  list.replaceChildren(frag);
   list.scrollTop = keep;
-  if (focusIdx != null) $("q-" + focusIdx)?.querySelector<HTMLElement>(".opt.is-correct")?.focus({ preventScroll: true });
+}
+
+/**
+ * One question changed: swap just its card and refresh the counters, instead of rebuilding every
+ * card. In "Needs a look" the fixed card stays put until the tab changes, so nothing jumps.
+ */
+function updateCard(idx: number, focusAnswer = false) {
+  const it = state.model?.items[idx];
+  const old = document.getElementById("q-" + idx);
+  if (!it || !isQuestion(it) || !old) return renderAll();
+  const card = renderCard(it, idx, numbers.get(idx) ?? 0);
+  old.replaceWith(card);
+  renderMeta();
+  renderSide();
+  if (focusAnswer) card.querySelector<HTMLElement>(".opt.is-correct")?.focus({ preventScroll: true });
 }
 
 /* Form panel */
@@ -287,12 +312,12 @@ function renderSide() {
   warn.hidden = !text;
   const make = $<HTMLButtonElement>("make");
   make.disabled = state.making || !qs.length;
-  make.textContent = state.making ? "Making form…" : "Make form";
+  make.textContent = state.making ? "Creating…" : "Create Google Form";
 }
 
-function renderAll(focusIdx?: number) {
+function renderAll() {
   renderMeta();
-  renderList(focusIdx);
+  renderList();
   renderSide();
 }
 
@@ -308,7 +333,7 @@ function showMade(f: MadeForm) {
   box.textContent = "";
   const head = el("div", "made-head");
   head.insertAdjacentHTML("beforeend", ICON.tick);
-  head.append(el("span", undefined, "Form made"));
+  head.append(el("span", undefined, "Google Form created"));
   box.append(head, linkRow("Edit", f.editUrl), linkRow("Students", f.studentUrl || f.publishedUrl));
   box.hidden = false;
 }
@@ -322,7 +347,7 @@ async function make() {
   try {
     const r = await api<{ form: MadeForm }>("POST", "/api/forms", { payload: buildPayload(state.model, settings()), source: "app" });
     showMade(r.form);
-    toast("Form made");
+    toast("Google Form created");
   } catch (e) {
     const err = e as ApiError;
     const invalid = (err.details as { errors?: string[] } | undefined)?.errors;
@@ -372,8 +397,9 @@ $<HTMLInputElement>("file").onchange = function () {
   if (f) readFile(f);
   (this as HTMLInputElement).value = "";
 };
-$("replace").onclick = () => showDrop(true);
-$("drop-cancel").onclick = () => showDrop(false);
+$("replace").onclick = () => showStart(true);
+$("back").onclick = () => showStart(false);
+$("example").onclick = () => loadModel(parseText(EXAMPLE_PAPER), EXAMPLE_NAME, true);
 $("paste-open").onclick = () => {
   $("paste").hidden = false;
   $<HTMLTextAreaElement>("paste-text").focus();
@@ -399,7 +425,6 @@ $("make").onclick = make;
 $("suggest").onclick = suggest;
 for (const id of ["s-points"]) $(id).addEventListener("input", renderMeta);
 
-loadModel(parseText(EXAMPLE_PAPER), EXAMPLE_NAME, true);
 initShell()
   .then((m) => {
     me = m;
