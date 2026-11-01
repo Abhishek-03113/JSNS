@@ -1002,6 +1002,7 @@ if (typeof module !== 'undefined') module.exports = MCQ;
   $('make').onclick = function () {
     if (!mcp || making || !state.model) return;
     var payload = MCQ.buildPayload(state.model, settings());
+    var pressedAt = Date.now();
     making = true; made = null; renderMade();
     makeStatus('Making "' + payload.title + '" in your Google account. This takes a few seconds.', false);
     renderMake();
@@ -1015,7 +1016,29 @@ if (typeof module !== 'undefined') module.exports = MCQ;
       mcp.invalidate(SERVER).catch(function () {});
       startWatches();
     }).catch(function (e) {
-      makeStatus(connectorError(e, true), true);
+      var code = e && e.code;
+      var unclear = !code || ['server_unavailable', 'upstream_error', 'cancelled', 'rate_limited'].indexOf(code) >= 0;
+      if (!unclear) { makeStatus(connectorError(e, true), true); return; }
+      /* No answer came back, so the form may or may not exist. Ask the connector instead of guessing. */
+      makeStatus('Claude didn\'t get an answer. Checking whether the form was made...', false);
+      return mcp.callTool(SERVER, 'list_google_forms', { limit: 5 }, { cache: { refresh: true } }).then(function (res) {
+        var forms = (res.payload || {}).forms || [];
+        var found = forms.filter(function (f) {
+          return f.title === payload.title && f.createdAt && new Date(f.createdAt).getTime() >= pressedAt - 120000;
+        })[0];
+        if (found && found.status === 'created') {
+          made = found; renderMade(); makeStatus('', false);
+          toast('Form made. Both links are ready.');
+          mcp.invalidate(SERVER).catch(function () {});
+          startWatches();
+        } else if (found && found.status === 'pending') {
+          makeStatus('The form is still being made. Look in Your recent forms in a minute before pressing again.', true);
+        } else if (found && found.status === 'failed') {
+          makeStatus(found.error || 'The form couldn\'t be made.', true);
+        } else {
+          makeStatus('Nothing was made, so it\'s safe to press the button again.' + (code === 'upstream_error' ? ' If Claude asks to allow MCQ Form Builder, choose Allow.' : ''), true);
+        }
+      }, function () { makeStatus(connectorError(e, true), true); });
     }).then(function () { making = false; renderMake(); });
   };
 
