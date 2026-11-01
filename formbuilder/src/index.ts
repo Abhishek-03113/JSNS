@@ -35,7 +35,6 @@ function start(): Promise<App> {
     .then((a) => {
       app = a;
       lastFailure = null;
-      if (!cfg!.executorScriptId) console.warn("APPS_SCRIPT_EXECUTOR_ID is not set: sign-in works, but creating forms will fail until you run `bun run setup:executor`.");
       console.log(`MCQ Form Builder ready (public URL ${cfg!.baseUrl})`);
       return a;
     })

@@ -56,7 +56,11 @@ function apiError(status: number, body: GoogleErrorBody, what: string): AppError
 }
 
 export class AppsScriptClient {
-  constructor(private cfg: Config) {}
+  /** @param executorId resolves the executor's deployment (or script) ID; "" when not set up. */
+  constructor(
+    private cfg: Config,
+    private executorId: () => Promise<string> = async () => cfg.executorScriptId,
+  ) {}
 
   private async call<T>(token: string, method: string, path: string, body?: unknown, what = "Apps Script API"): Promise<T> {
     const res = await fetch(this.cfg.google.scriptApiBase + path, {
@@ -71,12 +75,13 @@ export class AppsScriptClient {
 
   /** scripts.run on the executor. Runs as the user who owns `token`. */
   async run<T>(token: string, fn: string, parameters: unknown[]): Promise<T> {
-    if (!this.cfg.executorScriptId)
-      throw new AppError(503, "executor_not_configured", "APPS_SCRIPT_EXECUTOR_ID is not set. Run `bun run setup:executor` first.");
+    const executor = await this.executorId();
+    if (!executor)
+      throw new AppError(503, "executor_not_configured", "Form making isn't set up yet. The app's admin needs to finish \"Set up form making\" on the dashboard.");
     const out = await this.call<{ done?: boolean; response?: { result?: T }; error?: GoogleErrorBody["error"] }>(
       token,
       "POST",
-      `/v1/scripts/${encodeURIComponent(this.cfg.executorScriptId)}:run`,
+      `/v1/scripts/${encodeURIComponent(executor)}:run`,
       { function: fn, parameters, devMode: false },
       `Running ${fn}`,
     );

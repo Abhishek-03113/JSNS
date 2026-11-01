@@ -4,6 +4,7 @@ import { GOOGLE_SCOPES } from "./config.ts";
 import { pkceChallenge, randomToken, Sealer } from "./crypto.ts";
 import { Store, type ApiToken, type FormRecord, type FormStatus, type User } from "./db.ts";
 import { AppError } from "./errors.ts";
+import { ExecutorService } from "./executor.ts";
 import { AppsScriptClient, scriptEditorUrl, STANDALONE_MANIFEST } from "./google/appsScript.ts";
 import { authorizeUrl, exchangeCode, fetchProfile, missingScopes, revoke, TokenService } from "./google/oauth.ts";
 import { cookie, errorResponse, isDatabaseUnavailable, json, parseCookies, readJson, redirect, Router } from "./http.ts";
@@ -26,6 +27,7 @@ export interface Ctx {
   store: Store;
   tokens: TokenService;
   script: AppsScriptClient;
+  executor: ExecutorService;
   auth: Auth | null;
   sessionToken: string | null;
 }
@@ -147,7 +149,7 @@ function buildRouter() {
   r.on("GET", "/assets/dashboard.js", file("dashboard.js"));
   r.on("GET", "/healthz", async (_req, _p, ctx) => {
     await ctx.store.sql`SELECT 1`;
-    return json({ ok: true, executorConfigured: !!ctx.cfg.executorScriptId });
+    return json({ ok: true, executorConfigured: (await ctx.executor.status()).ready });
   });
 
   // Google OAuth (authorization code + PKCE)
@@ -204,8 +206,9 @@ function buildRouter() {
   });
 
   // API
-  r.on("GET", "/api/me", (_req, _p, ctx) => {
+  r.on("GET", "/api/me", async (_req, _p, ctx) => {
     const user = requireAuth(ctx);
+    const [executor, isAdmin] = await Promise.all([ctx.executor.status(), ctx.executor.isAdmin(user)]);
     return json({
       user: userJson(user),
       via: ctx.auth!.via,
@@ -215,7 +218,8 @@ function buildRouter() {
         missingScopes: missingScopes(user.scopes),
         requestedScopes: GOOGLE_SCOPES,
       },
-      executorConfigured: !!ctx.cfg.executorScriptId,
+      executorConfigured: executor.ready,
+      isAdmin,
     });
   });
 
@@ -313,7 +317,7 @@ function buildRouter() {
   r.on("GET", "/api/executor/ping", async (_req, _p, ctx) => {
     const user = requireAuth(ctx);
     const result = await ctx.script.ping(await ctx.tokens.accessToken(user));
-    return json({ executor: ctx.cfg.executorScriptId, result });
+    return json({ executor: await ctx.executor.id(), result });
   });
 
   // API tokens, managed from the signed-in dashboard only
@@ -344,6 +348,26 @@ function buildRouter() {
     const user = requireAuth(ctx, { sessionOnly: true });
     if (!(await ctx.store.deleteGrant(user.id, p.id!))) throw new AppError(404, "not_found", "No connection with that id.");
     return new Response(null, { status: 204 });
+  });
+
+  // Executor setup, admin only (see executor.ts)
+  const requireAdmin = async (ctx: Ctx) => {
+    const user = requireAuth(ctx, { sessionOnly: true });
+    if (!(await ctx.executor.isAdmin(user)))
+      throw new AppError(403, "admin_only", "Only the app's admin can set up form making. Ask them to finish it on their dashboard.");
+    return user;
+  };
+  r.on("GET", "/api/admin/executor", async (_req, _p, ctx) => {
+    await requireAdmin(ctx);
+    return json({ executor: await ctx.executor.status() });
+  });
+  r.on("POST", "/api/admin/executor/setup", async (_req, _p, ctx) => {
+    const user = await requireAdmin(ctx);
+    return json({ executor: await ctx.executor.setup(user, await ctx.tokens.accessToken(user), ctx.script) });
+  });
+  r.on("POST", "/api/admin/executor/verify", async (_req, _p, ctx) => {
+    const user = await requireAdmin(ctx);
+    return json({ executor: await ctx.executor.verify(await ctx.tokens.accessToken(user), ctx.script) });
   });
 
   // OAuth authorization server + MCP endpoint for claude.ai connectors
@@ -387,7 +411,8 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
   const store = deps.store ?? new Store(cfg.databaseUrl, { max: cfg.dbPoolMax });
   await store.migrate();
   const tokens = new TokenService(cfg, store, new Sealer(cfg.sessionSecret));
-  const script = new AppsScriptClient(cfg);
+  const executor = new ExecutorService(cfg, store);
+  const script = new AppsScriptClient(cfg, () => executor.id());
   const router = buildRouter();
   const appOrigin = new URL(cfg.baseUrl).origin;
   const allowAnyOrigin = cfg.corsOrigins.includes("*");
@@ -459,7 +484,7 @@ export async function createApp(cfg: Config, deps: { store?: Store } = {}): Prom
         return wantsHtml(req)
           ? PAGES.notFound()
           : withCors(json({ error: { code: "method_not_allowed", message: "Use " + m.allowed.join(", ") + "." } }, 405, { allow: m.allowed.join(", ") }));
-      return withCors(await m.handler(req, m.params, { cfg, store, tokens, script, auth, sessionToken }));
+      return withCors(await m.handler(req, m.params, { cfg, store, tokens, script, executor, auth, sessionToken }));
     } catch (e) {
       return wantsHtml(req) ? pageForError(e, req) : withCors(errorResponse(e));
     }

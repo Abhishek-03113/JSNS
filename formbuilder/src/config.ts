@@ -26,6 +26,8 @@ export interface Config {
   dbPoolMax: number;
   corsOrigins: string[];
   allowedEmails: string[];
+  /** Who may set up the executor. Empty: the first account that signed in. */
+  adminEmails: string[];
   sessionDays: number;
   google: {
     authUrl: string;
@@ -59,6 +61,7 @@ export function loadConfig(env: Record<string, string | undefined> = process.env
     dbPoolMax: Math.max(1, Number(env.DB_POOL_MAX || 3)),
     corsOrigins: list(env.CORS_ORIGINS),
     allowedEmails: list(env.ALLOWED_EMAILS).map((e) => e.toLowerCase()),
+    adminEmails: list(env.ADMIN_EMAILS).map((e) => e.toLowerCase()),
     sessionDays: Number(env.SESSION_DAYS || 30),
     google: {
       authUrl: env.GOOGLE_AUTH_URL || "https://accounts.google.com/o/oauth2/v2/auth",
