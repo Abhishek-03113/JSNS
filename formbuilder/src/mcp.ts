@@ -137,8 +137,8 @@ async function callTool(ctx: Ctx, user: User, name: string, args: Record<string,
         ? "Google sign-in has expired. Sign in again on the MCQ Form Builder site."
         : missing.length
           ? "Google permission to manage Forms is missing. Sign in again on the MCQ Form Builder site and allow it."
-          : !(await ctx.executor.status()).ready
-            ? "Form making isn't set up yet. The app's admin needs to finish it on the MCQ Form Builder dashboard."
+          : !ctx.cfg.executorScriptId
+            ? "The form-making script isn't set up on the server yet."
             : null;
       const data = { email: user.email, name: user.name, readyToCreateForms: !problem, problem };
       return ok(data, problem ? `Signed in as ${user.email}. ${problem}` : `Signed in as ${user.email}. Ready to create forms.`);

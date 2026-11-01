@@ -551,8 +551,7 @@ describe("graceful errors", () => {
     const results = await Promise.allSettled(stores.map((s) => s.migrate()));
     expect(results.every((r) => r.status === "fulfilled")).toBe(true);
     const appliedOnce = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
-    const { MIGRATIONS } = await import("../src/assets.ts");
-    expect(appliedOnce.sort()).toEqual(MIGRATIONS.map((m) => m.name).sort()); // each applied exactly once
+    expect(appliedOnce.sort()).toEqual(["001_init.sql", "002_short_url.sql", "003_oauth.sql"]);
     await Promise.all(stores.map((s) => s.close()));
     const cleanup = new SQL(DB_URL);
     await cleanup.unsafe("DROP SCHEMA race CASCADE");

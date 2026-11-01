@@ -203,25 +203,6 @@ export class Store {
     return (row as User) ?? null;
   }
 
-  // App settings
-
-  async getSetting<T>(key: string): Promise<T | null> {
-    const [row] = await this.sql`SELECT value FROM app_settings WHERE key = ${key}`;
-    return row ? (row.value as T) : null;
-  }
-
-  async setSetting(key: string, value: unknown): Promise<void> {
-    await this.sql`
-      INSERT INTO app_settings (key, value, updated_at) VALUES (${key}, ${JSON.stringify(value)}::jsonb, now())
-      ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = now()`;
-  }
-
-  /** The first account that ever signed in: the app's admin when ADMIN_EMAILS isn't set. */
-  async firstUserId(): Promise<string | null> {
-    const [row] = await this.sql`SELECT id FROM users ORDER BY created_at ASC, id ASC LIMIT 1`;
-    return row ? row.id : null;
-  }
-
   // OAuth for MCP clients
 
   async createOAuthClient(c: { name: string; redirect_uris: string[]; withSecret: boolean }): Promise<{ client_id: string; client_secret?: string }> {
